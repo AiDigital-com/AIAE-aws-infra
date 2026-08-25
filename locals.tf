@@ -6,8 +6,8 @@ locals {
   secret_name         = var.environment == "prod" ? "AIAE-PRD/operational-hub" : "AIAE-DEV/operational-hub"
 
   github_subjects = [
-    "repo:${var.github_org}/${var.github_app_repo}:ref:refs/heads/dev",
-    "repo:${var.github_org}/${var.github_app_repo}:ref:refs/heads/main",
+    "repo:${var.github_org}/${var.github_app_repo}:environment:dev",
+    "repo:${var.github_org}/${var.github_app_repo}:environment:prod",
   ]
 
   github_oidc_provider_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : var.github_oidc_provider_arn

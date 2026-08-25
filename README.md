@@ -30,7 +30,7 @@ Each environment stack creates:
 - Application IAM role restricted to the environment secret.
 - Secrets Store CSI driver/provider with Kubernetes Secret synchronization and rotation.
 - EKS Auto Mode ALB `IngressClass` and `IngressClassParams`.
-- GitHub Actions OIDC role for ECR push and migration-secret read.
+- GitHub Actions OIDC role restricted to ECR image push.
 
 Optional feature flags add:
 
@@ -133,7 +133,9 @@ Terraform creates the secret container but never writes secret values into Terra
   "POSTGRES_DB": "operational_hub",
   "POSTGRES_USER": "operational_hub",
   "POSTGRES_PASSWORD": "database-password",
-  "GOOGLE_SERVICE_ACCOUNT_JSON": "{}"
+  "CLERK_SECRET_KEY": "clerk-secret-key",
+  "GOOGLE_SERVICE_ACCOUNT_JSON": "{}",
+  "SESSION_SECRET": "session-secret"
 }
 ```
 
@@ -145,7 +147,9 @@ Use these Terraform outputs:
 - `secrets_manager_secret_name`
 - `application_iam_role_arn`
 
-Set `application_iam_role_arn` as the `eks.amazonaws.com/role-arn` service-account annotation in the matching `AIAE-helm-versions` branch.
+The deterministic application role ARN is stored in the matching `AIAE-helm`
+environment branch. Verify it against `application_iam_role_arn` before enabling
+the Argo CD bootstrap.
 
 ## 6. Configure GitHub Actions
 
@@ -154,11 +158,21 @@ Create GitHub environments `dev` and `prod` in each application repository with:
 - `AWS_REGION=us-east-1`
 - `AWS_BACKEND_CI_ROLE_TO_ASSUME=<github_backend_ci_role_arn>`
 - `GITOPS_VERSIONS_REPOSITORY=AiDigital-com/AIAE-helm-versions`
+- `GITOPS_HELM_REPOSITORY=AiDigital-com/AIAE-helm`
 - secret `GITOPS_TOKEN`
 
-## Liquibase network requirement
+Keep automatic deployment disabled during bootstrap. After both environment
+stacks and GitHub variables are ready, set the repository variable
+`GITOPS_DEPLOY_ENABLED=true`. Manual `workflow_dispatch` runs remain available
+before that and must be approved explicitly.
 
-RDS is private. A GitHub-hosted runner cannot reach it even with correct IAM permissions. Maven Liquibase must run from an execution environment inside the VPC before the workflow updates the GitOps image tag.
+## Liquibase migration
+
+The application pipeline publishes a Maven-based Liquibase image beside the
+application image. The Operational Hub chart runs it as an Argo CD Sync hook
+inside EKS before the Deployment sync wave. The hook reads the matching
+Secrets Manager object through IRSA and blocks the rollout when migration
+fails.
 
 ## Optional frontend
 

@@ -62,6 +62,14 @@ run "base_dev" {
   }
 
   assert {
+    condition = local.github_subjects == [
+      "repo:AiDigital-com/AIAE-operational-hub:environment:dev",
+      "repo:AiDigital-com/AIAE-operational-hub:environment:prod",
+    ]
+    error_message = "GitHub OIDC trust must match the workflow environments."
+  }
+
+  assert {
     condition     = length(aws_eks_capability.argocd) == 0
     error_message = "Argo CD must remain disabled in the base stack."
   }

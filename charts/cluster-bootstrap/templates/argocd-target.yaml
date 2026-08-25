@@ -23,6 +23,8 @@ spec:
   destinations:
     - namespace: {{ .Values.argocd.targetNamespace }}
       server: {{ .Values.argocd.clusterArn }}
+    - namespace: {{ .Values.argocd.namespace }}
+      server: {{ .Values.argocd.clusterArn }}
   sourceRepos:
     - {{ .Values.argocd.helmRepositoryUrl | quote }}
     - {{ .Values.argocd.versionsRepositoryUrl | quote }}
@@ -36,7 +38,7 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: operational-hub-api-{{ .Values.argocd.targetRevision }}
+  name: {{ .Values.argocd.projectName }}-root
   namespace: {{ .Values.argocd.namespace }}
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -44,18 +46,19 @@ spec:
   project: {{ .Values.argocd.projectName }}
   destination:
     server: {{ .Values.argocd.clusterArn }}
-    namespace: {{ .Values.argocd.targetNamespace }}
-  sources:
-    - repoURL: {{ .Values.argocd.helmRepositoryUrl | quote }}
-      targetRevision: {{ .Values.argocd.targetRevision }}
-      path: charts/java-service
-      helm:
-        valueFiles:
-          - $versions/operational-hub-api/values.yaml
-          - $versions/operational-hub-api/images.yaml
-    - repoURL: {{ .Values.argocd.versionsRepositoryUrl | quote }}
-      targetRevision: {{ .Values.argocd.targetRevision }}
-      ref: versions
+    namespace: {{ .Values.argocd.namespace }}
+  source:
+    repoURL: {{ .Values.argocd.helmRepositoryUrl | quote }}
+    targetRevision: {{ .Values.argocd.targetRevision }}
+    path: aiae
+    helm:
+      parameters:
+        - name: destination.server
+          value: {{ .Values.argocd.clusterArn | quote }}
+        - name: source.helmRepositoryUrl
+          value: {{ .Values.argocd.helmRepositoryUrl | quote }}
+        - name: source.versionsRepositoryUrl
+          value: {{ .Values.argocd.versionsRepositoryUrl | quote }}
   syncPolicy:
     automated:
       prune: true

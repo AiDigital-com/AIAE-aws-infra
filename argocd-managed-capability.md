@@ -2,7 +2,7 @@
 
 The managed capability is implemented in `argocd.tf` and is controlled by `enable_argocd`.
 
-Terraform creates the capability role, Identity Center role mappings, EKS capability, and target-cluster access policies. The local Helm bootstrap registers the EKS cluster using its ARN and can create the Operational Hub AppProject/Application.
+Terraform creates the capability role, Identity Center role mappings, EKS capability, and target-cluster access policies. The local Helm bootstrap registers the EKS cluster using its ARN and creates the environment root Application. The root then follows the Feedlot-style app-of-apps configuration from the `dev` or `prod` branch of `AIAE-helm`.
 
 External steps remain intentionally manual:
 

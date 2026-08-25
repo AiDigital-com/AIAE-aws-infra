@@ -33,10 +33,9 @@ data "aws_iam_policy_document" "github_backend_ci" {
   }
 
   statement {
-    sid    = "EcrRepositoryBootstrap"
+    sid    = "EcrRepositoryRead"
     effect = "Allow"
     actions = [
-      "ecr:CreateRepository",
       "ecr:DescribeRepositories",
     ]
     resources = ["*"]
@@ -57,16 +56,6 @@ data "aws_iam_policy_document" "github_backend_ci" {
     ]
   }
 
-  statement {
-    sid    = "ReadOperationalHubSecret"
-    effect = "Allow"
-    actions = [
-      "secretsmanager:GetSecretValue",
-    ]
-    resources = [
-      aws_secretsmanager_secret.app.arn,
-    ]
-  }
 }
 
 resource "aws_iam_openid_connect_provider" "github" {
