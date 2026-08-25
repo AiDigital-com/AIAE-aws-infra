@@ -1,0 +1,34 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: eks.amazonaws.com/v1
+kind: IngressClassParams
+metadata:
+  name: {{ .Values.ingress.className }}
+spec:
+  scheme: {{ .Values.ingress.scheme }}
+  {{- with .Values.ingress.publicSubnetIds }}
+  subnets:
+    ids:
+      {{- toYaml . | nindent 6 }}
+  {{- end }}
+  {{- with .Values.ingress.certificateARNs }}
+  certificateARNs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.ingress.tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: {{ .Values.ingress.className }}
+  annotations:
+    ingressclass.kubernetes.io/is-default-class: "true"
+spec:
+  controller: eks.amazonaws.com/alb
+  parameters:
+    apiGroup: eks.amazonaws.com
+    kind: IngressClassParams
+    name: {{ .Values.ingress.className }}
+{{- end }}

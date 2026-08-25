@@ -1,0 +1,18 @@
+ingress:
+  enabled: true
+  className: alb
+  scheme: internet-facing
+  publicSubnetIds: []
+  certificateARNs: []
+  tags: {}
+
+argocd:
+  enabled: false
+  namespace: argocd
+  clusterArn: ""
+  targetNamespace: ""
+  projectName: ""
+  gitopsBootstrapEnabled: false
+  helmRepositoryUrl: ""
+  versionsRepositoryUrl: ""
+  targetRevision: dev
