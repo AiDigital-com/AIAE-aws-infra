@@ -41,7 +41,7 @@ Optional feature flags add:
 
 ## Prerequisites
 
-- Terraform 1.8 or newer.
+- Terraform 1.10 or newer for native S3 state locking.
 - AWS CLI v2, because the Helm provider uses `aws eks get-token`.
 - CLI profiles `aiae-dev` and `aiae-prod`, preferably backed by IAM Identity Center.
 - Platform-provisioning permissions in both accounts.
@@ -67,7 +67,9 @@ AWS_PROFILE=aiae-prod terraform apply -var-file=env/prod.tfvars
 cd ..
 ```
 
-This creates one state bucket and lock table per account. The root backend files already reference their names.
+This creates one state bucket per account. The root backend files enable native
+S3 lockfiles, so concurrent Terraform writes are rejected without a separate
+DynamoDB table.
 
 ## 2. Apply base infrastructure
 
