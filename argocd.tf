@@ -1,7 +1,7 @@
 resource "aws_codeconnections_connection" "github" {
   count = var.create_github_codeconnection ? 1 : 0
 
-  name          = "${var.project}-github"
+  name          = "aiae-github"
   provider_type = "GitHub"
 }
 

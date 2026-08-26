@@ -7,7 +7,7 @@ github_org = "AiDigital-com"
 
 create_github_oidc_provider  = true
 create_ecr_repository        = true
-create_github_codeconnection = false
+create_github_codeconnection = true
 
 # Enable after AWS Identity Center IDs and the GitHub connection are available.
 enable_argocd             = false

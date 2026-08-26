@@ -139,6 +139,11 @@ run "full_prod" {
   }
 
   assert {
+    condition     = aws_codeconnections_connection.github[0].name == "aiae-github"
+    error_message = "The GitHub connection must be shared across AIAE applications in the account."
+  }
+
+  assert {
     condition = local.github_subjects == [
       "repo:AiDigital-com/AIAE-operational-hub:environment:prod",
     ]

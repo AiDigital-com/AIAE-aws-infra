@@ -92,8 +92,8 @@ resource "helm_release" "cluster_bootstrap" {
       targetNamespace        = local.app_namespace
       projectName            = local.name
       gitopsBootstrapEnabled = var.enable_gitops_bootstrap
-      helmRepositoryUrl      = local.gitops_helm_repository_url
-      versionsRepositoryUrl  = local.gitops_versions_repository_url
+      helmRepositoryUrl      = var.enable_argocd ? local.gitops_helm_repository_url : ""
+      versionsRepositoryUrl  = var.enable_argocd ? local.gitops_versions_repository_url : ""
       targetRevision         = var.environment
     }
   })]
