@@ -64,9 +64,16 @@ run "base_dev" {
   assert {
     condition = local.github_subjects == [
       "repo:AiDigital-com/AIAE-operational-hub:environment:dev",
-      "repo:AiDigital-com/AIAE-operational-hub:environment:prod",
     ]
-    error_message = "GitHub OIDC trust must match the workflow environments."
+    error_message = "The dev GitHub OIDC trust must be limited to the dev environment."
+  }
+
+  assert {
+    condition = local.application_service_account_subjects == [
+      "system:serviceaccount:aiae-operational-hub-dev:operational-hub-api",
+      "system:serviceaccount:aiae-operational-hub-dev:operational-hub-api-liquibase",
+    ]
+    error_message = "The application role must trust both runtime and Liquibase service accounts."
   }
 
   assert {
@@ -129,5 +136,12 @@ run "full_prod" {
   assert {
     condition     = length(aws_iam_role.external_dns) == 1
     error_message = "The full stack must create the ExternalDNS IAM role."
+  }
+
+  assert {
+    condition = local.github_subjects == [
+      "repo:AiDigital-com/AIAE-operational-hub:environment:prod",
+    ]
+    error_message = "The prod GitHub OIDC trust must be limited to the prod environment."
   }
 }

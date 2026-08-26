@@ -17,7 +17,7 @@ data "aws_iam_policy_document" "application_assume_role" {
     condition {
       test     = "StringEquals"
       variable = "${module.eks.oidc_provider}:sub"
-      values   = ["system:serviceaccount:${local.app_namespace}:operational-hub-api"]
+      values   = local.application_service_account_subjects
     }
   }
 }
