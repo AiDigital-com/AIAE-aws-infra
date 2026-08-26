@@ -4,6 +4,9 @@ aws_account_id = "496336474487"
 aws_region     = "us-east-1"
 
 github_org = "AiDigital-com"
+github_oidc_subjects = [
+  "repo:AiDigital-com@184130113/AIAE-operational-hub@1327019535:environment:dev",
+]
 
 create_github_oidc_provider  = true
 create_ecr_repository        = true

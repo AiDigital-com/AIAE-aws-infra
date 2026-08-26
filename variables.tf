@@ -96,6 +96,19 @@ variable "github_app_repo" {
   default     = "AIAE-operational-hub"
 }
 
+variable "github_oidc_subjects" {
+  type        = list(string)
+  description = "Explicit GitHub OIDC subject claims. Use this when the organization customizes its OIDC subject template."
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for subject in var.github_oidc_subjects : startswith(subject, "repo:")
+    ])
+    error_message = "Every github_oidc_subjects entry must start with repo:."
+  }
+}
+
 variable "github_gitops_versions_repo" {
   type        = string
   description = "GitOps versions repository name."

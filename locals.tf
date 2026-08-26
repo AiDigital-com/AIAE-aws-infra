@@ -5,9 +5,9 @@ locals {
   ecr_repository_name = "aidigital.aiae-projects/operational-hub-application"
   secret_name         = var.environment == "prod" ? "AIAE-PRD/operational-hub" : "AIAE-DEV/operational-hub"
 
-  github_subjects = [
+  github_subjects = length(var.github_oidc_subjects) > 0 ? var.github_oidc_subjects : tolist([
     "repo:${var.github_org}/${var.github_app_repo}:environment:${var.environment}",
-  ]
+  ])
 
   application_service_account_subjects = [
     "system:serviceaccount:${local.app_namespace}:operational-hub-api",

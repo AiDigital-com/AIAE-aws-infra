@@ -62,9 +62,9 @@ run "base_dev" {
   }
 
   assert {
-    condition = local.github_subjects == [
+    condition = local.github_subjects == tolist([
       "repo:AiDigital-com/AIAE-operational-hub:environment:dev",
-    ]
+    ])
     error_message = "The dev GitHub OIDC trust must be limited to the dev environment."
   }
 
@@ -84,6 +84,32 @@ run "base_dev" {
   assert {
     condition     = length(aws_cloudfront_distribution.frontend) == 0
     error_message = "Frontend resources must remain disabled in the base stack."
+  }
+}
+
+run "custom_github_oidc_subject" {
+  command = plan
+
+  variables {
+    environment                 = "dev"
+    create_ecr_repository       = true
+    create_github_oidc_provider = true
+    github_oidc_subjects = [
+      "repo:AiDigital-com@184130113/AIAE-operational-hub@1327019535:environment:dev",
+    ]
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_external_dns        = false
+    enable_public_certificate  = false
+    enable_frontend            = false
+    enable_deletion_protection = false
+  }
+
+  assert {
+    condition = local.github_subjects == tolist([
+      "repo:AiDigital-com@184130113/AIAE-operational-hub@1327019535:environment:dev",
+    ])
+    error_message = "The explicit GitHub OIDC subjects must override the default subject template."
   }
 }
 
@@ -144,9 +170,9 @@ run "full_prod" {
   }
 
   assert {
-    condition = local.github_subjects == [
+    condition = local.github_subjects == tolist([
       "repo:AiDigital-com/AIAE-operational-hub:environment:prod",
-    ]
+    ])
     error_message = "The prod GitHub OIDC trust must be limited to the prod environment."
   }
 }
