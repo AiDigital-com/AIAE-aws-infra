@@ -30,12 +30,11 @@ enable_secrets_store_csi = true
 
 # DNS is managed in GoDaddy. Keep disabled until manual ACM validation or
 # Route53 subdomain delegation is represented in Terraform.
-route53_zone_name                        = ""
-enable_public_certificate                = false
-enable_external_dns                      = false
-enable_frontend                          = true
-frontend_certificate_request_domain_name = "dev.aiae-operational-hub.aidigital.tech"
-frontend_api_origin_domain_name          = "k8s-aiaedev-operatio-b401294554-2047536698.us-east-1.elb.amazonaws.com"
+route53_zone_name               = ""
+enable_public_certificate       = false
+enable_external_dns             = false
+enable_frontend                 = true
+frontend_api_origin_domain_name = "k8s-aiaedev-operatio-b401294554-2047536698.us-east-1.elb.amazonaws.com"
 
 vpc_cidr              = "10.40.0.0/16"
 availability_zones    = ["us-east-1a", "us-east-1b"]

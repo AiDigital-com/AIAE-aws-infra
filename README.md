@@ -124,7 +124,7 @@ The current domain is managed in GoDaddy, not Route53, so Route53 and ExternalDN
 3. Set `frontend_domain_name` to the same hostname and apply Terraform again.
 4. Add the application CNAME in GoDaddy, pointing the hostname to the `frontend_url` CloudFront distribution hostname.
 
-Alternatively, delegate an AIAE subdomain to Route53 and enable the existing Terraform DNS resources. The DEV certificate request uses `dev.aiae-operational-hub.aidigital.tech`.
+Alternatively, delegate an AIAE subdomain to Route53 and enable the existing Terraform DNS resources. DEV uses its generated CloudFront hostname and does not depend on the production GoDaddy zone.
 
 ## 5. Populate application secrets
 
