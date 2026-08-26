@@ -12,9 +12,9 @@ create_github_oidc_provider  = true
 create_ecr_repository        = true
 create_github_codeconnection = true
 
-# Enable after AWS Identity Center IDs and the GitHub connection are available.
-enable_argocd           = false
-enable_gitops_bootstrap = false
+# AWS Identity Center and the GitHub connection are configured for DEV.
+enable_argocd           = true
+enable_gitops_bootstrap = true
 argocd_idc_instance_arn = "arn:aws:sso:::instance/ssoins-7223bd3cc2b2f348"
 argocd_rbac_role_mappings = {
   platform_admins = {
