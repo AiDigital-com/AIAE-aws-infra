@@ -42,8 +42,10 @@ locals {
   route53_enabled = var.route53_zone_name != "" && (
     var.enable_public_certificate ||
     var.enable_external_dns ||
-    (var.enable_frontend && var.frontend_domain_name != "")
+    (var.enable_frontend && local.frontend_certificate_domain_name != "")
   )
+
+  frontend_certificate_domain_name = var.frontend_domain_name != "" ? var.frontend_domain_name : var.frontend_certificate_request_domain_name
 
   frontend_bucket_name = coalesce(
     var.frontend_bucket_name,

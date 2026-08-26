@@ -117,12 +117,14 @@ The capability role receives only `GetConnection` and `UseConnection` for its ac
 
 ## 4. DNS and TLS
 
-The current domain is managed in GoDaddy, not Route53, so DNS flags remain disabled. Before HTTPS go-live, choose one approach:
+The current domain is managed in GoDaddy, not Route53, so Route53 and ExternalDNS remain disabled. For manual validation:
 
-- create an ACM certificate and add its DNS validation CNAME plus the application CNAME manually in GoDaddy; or
-- delegate an AIAE subdomain to a Route53 hosted zone and enable the existing Terraform DNS resources.
+1. Set `frontend_certificate_request_domain_name` while leaving `frontend_domain_name` empty, then apply Terraform.
+2. Add the CNAME from `frontend_certificate_validation_options` in GoDaddy and wait for ACM status `ISSUED`.
+3. Set `frontend_domain_name` to the same hostname and apply Terraform again.
+4. Add the application CNAME in GoDaddy, pointing the hostname to the `frontend_url` CloudFront distribution hostname.
 
-The proposed dev hostname is `dev.aiae-operational-hub.aidigital.tech`. Do not enable `route53_zone_name`, `enable_public_certificate`, or `enable_external_dns` until the DNS approach is selected and represented in Terraform.
+Alternatively, delegate an AIAE subdomain to Route53 and enable the existing Terraform DNS resources. The DEV certificate request uses `dev.aiae-operational-hub.aidigital.tech`.
 
 ## 5. Populate application secrets
 
@@ -178,7 +180,7 @@ fails.
 
 ## Optional frontend
 
-`enable_frontend = true` creates a private S3 bucket and CloudFront distribution. Leave `frontend_domain_name` empty to use the generated CloudFront hostname. A custom frontend hostname must differ from the API/ALB hostname.
+`enable_frontend = true` creates a private S3 bucket and CloudFront distribution. Leave `frontend_domain_name` empty to use the generated CloudFront hostname. `frontend_certificate_request_domain_name` can request a certificate without attaching it while external DNS validation is pending. A custom frontend hostname must differ from the API/ALB hostname.
 
 ## Local validation
 

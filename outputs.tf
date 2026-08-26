@@ -88,6 +88,17 @@ output "frontend_cloudfront_distribution_id" {
   value       = try(aws_cloudfront_distribution.frontend[0].id, null)
 }
 
+output "frontend_certificate_validation_options" {
+  description = "DNS records required to validate the optional frontend ACM certificate."
+  value = try([
+    for option in aws_acm_certificate.frontend[0].domain_validation_options : {
+      name  = option.resource_record_name
+      type  = option.resource_record_type
+      value = option.resource_record_value
+    }
+  ], [])
+}
+
 output "frontend_url" {
   description = "Frontend URL when the optional S3/CloudFront stack is enabled."
   value = try(

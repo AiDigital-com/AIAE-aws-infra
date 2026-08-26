@@ -252,6 +252,12 @@ variable "frontend_domain_name" {
   default     = ""
 }
 
+variable "frontend_certificate_request_domain_name" {
+  type        = string
+  description = "Optional hostname for an ACM certificate request before a manually managed DNS name is attached to CloudFront."
+  default     = ""
+}
+
 variable "frontend_api_origin_domain_name" {
   type        = string
   description = "Optional public ALB hostname used as the CloudFront API origin. Empty disables API proxy behaviors."

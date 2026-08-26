@@ -131,23 +131,18 @@ resource "aws_cloudfront_response_headers_policy" "frontend" {
 }
 
 resource "aws_acm_certificate" "frontend" {
-  count = var.enable_frontend && var.frontend_domain_name != "" ? 1 : 0
+  count = var.enable_frontend && local.frontend_certificate_domain_name != "" ? 1 : 0
 
-  domain_name       = var.frontend_domain_name
+  domain_name       = local.frontend_certificate_domain_name
   validation_method = "DNS"
 
   lifecycle {
     create_before_destroy = true
-
-    precondition {
-      condition     = var.route53_zone_name != ""
-      error_message = "route53_zone_name must be set when frontend_domain_name is configured."
-    }
   }
 }
 
 resource "aws_route53_record" "frontend_certificate_validation" {
-  count = var.enable_frontend && var.frontend_domain_name != "" ? 1 : 0
+  count = var.enable_frontend && local.frontend_certificate_domain_name != "" && local.route53_enabled ? 1 : 0
 
   zone_id = data.aws_route53_zone.public[0].zone_id
   name    = tolist(aws_acm_certificate.frontend[0].domain_validation_options)[0].resource_record_name
@@ -157,7 +152,7 @@ resource "aws_route53_record" "frontend_certificate_validation" {
 }
 
 resource "aws_acm_certificate_validation" "frontend" {
-  count = var.enable_frontend && var.frontend_domain_name != "" ? 1 : 0
+  count = var.enable_frontend && local.frontend_certificate_domain_name != "" && local.route53_enabled ? 1 : 0
 
   certificate_arn         = aws_acm_certificate.frontend[0].arn
   validation_record_fqdns = [aws_route53_record.frontend_certificate_validation[0].fqdn]
@@ -234,9 +229,11 @@ resource "aws_cloudfront_distribution" "frontend" {
 
   viewer_certificate {
     cloudfront_default_certificate = var.frontend_domain_name == "" ? true : null
-    acm_certificate_arn            = var.frontend_domain_name == "" ? null : aws_acm_certificate_validation.frontend[0].certificate_arn
-    ssl_support_method             = var.frontend_domain_name == "" ? null : "sni-only"
-    minimum_protocol_version       = var.frontend_domain_name == "" ? "TLSv1" : "TLSv1.2_2021"
+    acm_certificate_arn = var.frontend_domain_name == "" ? null : (
+      local.route53_enabled ? aws_acm_certificate_validation.frontend[0].certificate_arn : aws_acm_certificate.frontend[0].arn
+    )
+    ssl_support_method       = var.frontend_domain_name == "" ? null : "sni-only"
+    minimum_protocol_version = var.frontend_domain_name == "" ? "TLSv1" : "TLSv1.2_2021"
   }
 
   lifecycle {
