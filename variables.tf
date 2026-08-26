@@ -252,6 +252,12 @@ variable "frontend_domain_name" {
   default     = ""
 }
 
+variable "frontend_api_origin_domain_name" {
+  type        = string
+  description = "Optional public ALB hostname used as the CloudFront API origin. Empty disables API proxy behaviors."
+  default     = ""
+}
+
 variable "database_name" {
   type        = string
   description = "PostgreSQL database name."

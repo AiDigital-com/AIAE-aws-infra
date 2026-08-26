@@ -70,8 +70,8 @@ run "base_dev" {
 
   assert {
     condition = local.application_service_account_subjects == [
-      "system:serviceaccount:aiae-operational-hub-dev:operational-hub-api",
-      "system:serviceaccount:aiae-operational-hub-dev:operational-hub-api-liquibase",
+      "system:serviceaccount:aiae-dev:operational-hub-api",
+      "system:serviceaccount:aiae-dev:operational-hub-api-liquibase",
     ]
     error_message = "The application role must trust both runtime and Liquibase service accounts."
   }
@@ -150,7 +150,7 @@ run "full_prod" {
   }
 
   assert {
-    condition     = length(aws_eks_access_policy_association.argocd_cluster_view) == 1 && length(aws_eks_access_policy_association.argocd_namespace_edit) == 1
+    condition     = length(aws_eks_access_policy_association.argocd_cluster_view) == 1 && length(aws_eks_access_policy_association.argocd_namespace_admin) == 1
     error_message = "Argo CD target-cluster permissions are incomplete."
   }
 

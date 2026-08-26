@@ -63,6 +63,38 @@ data "aws_cloudfront_cache_policy" "caching_optimized" {
   name = "Managed-CachingOptimized"
 }
 
+data "aws_cloudfront_cache_policy" "caching_disabled" {
+  count = var.enable_frontend && var.frontend_api_origin_domain_name != "" ? 1 : 0
+
+  name = "Managed-CachingDisabled"
+}
+
+data "aws_cloudfront_origin_request_policy" "all_viewer_except_host" {
+  count = var.enable_frontend && var.frontend_api_origin_domain_name != "" ? 1 : 0
+
+  name = "Managed-AllViewerExceptHostHeader"
+}
+
+resource "aws_cloudfront_function" "frontend_spa" {
+  count = var.enable_frontend ? 1 : 0
+
+  name    = "${local.name}-spa-routing"
+  runtime = "cloudfront-js-2.0"
+  publish = true
+  code    = <<-EOT
+    function handler(event) {
+      var request = event.request;
+      var uri = request.uri;
+      if (!uri.includes('.') && !uri.endsWith('/')) {
+        request.uri = '/index.html';
+      } else if (uri.endsWith('/')) {
+        request.uri += 'index.html';
+      }
+      return request;
+    }
+  EOT
+}
+
 resource "aws_cloudfront_response_headers_policy" "frontend" {
   count = var.enable_frontend ? 1 : 0
 
@@ -147,6 +179,22 @@ resource "aws_cloudfront_distribution" "frontend" {
     origin_access_control_id = aws_cloudfront_origin_access_control.frontend[0].id
   }
 
+  dynamic "origin" {
+    for_each = var.frontend_api_origin_domain_name == "" ? [] : [var.frontend_api_origin_domain_name]
+
+    content {
+      domain_name = origin.value
+      origin_id   = "backend-alb"
+
+      custom_origin_config {
+        http_port              = 80
+        https_port             = 443
+        origin_protocol_policy = "http-only"
+        origin_ssl_protocols   = ["TLSv1.2"]
+      }
+    }
+  }
+
   default_cache_behavior {
     target_origin_id           = "frontend-s3"
     viewer_protocol_policy     = "redirect-to-https"
@@ -155,20 +203,27 @@ resource "aws_cloudfront_distribution" "frontend" {
     compress                   = true
     cache_policy_id            = data.aws_cloudfront_cache_policy.caching_optimized[0].id
     response_headers_policy_id = aws_cloudfront_response_headers_policy.frontend[0].id
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.frontend_spa[0].arn
+    }
   }
 
-  custom_error_response {
-    error_code            = 403
-    response_code         = 200
-    response_page_path    = "/index.html"
-    error_caching_min_ttl = 0
-  }
+  dynamic "ordered_cache_behavior" {
+    for_each = var.frontend_api_origin_domain_name == "" ? [] : ["/api/*", "/actuator/*"]
 
-  custom_error_response {
-    error_code            = 404
-    response_code         = 200
-    response_page_path    = "/index.html"
-    error_caching_min_ttl = 0
+    content {
+      path_pattern               = ordered_cache_behavior.value
+      target_origin_id           = "backend-alb"
+      viewer_protocol_policy     = "redirect-to-https"
+      allowed_methods            = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+      cached_methods             = ["GET", "HEAD", "OPTIONS"]
+      compress                   = true
+      cache_policy_id            = data.aws_cloudfront_cache_policy.caching_disabled[0].id
+      origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.all_viewer_except_host[0].id
+      response_headers_policy_id = aws_cloudfront_response_headers_policy.frontend[0].id
+    }
   }
 
   restrictions {

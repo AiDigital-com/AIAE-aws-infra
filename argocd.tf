@@ -106,7 +106,7 @@ resource "aws_eks_access_policy_association" "argocd_cluster_view" {
 
   cluster_name  = module.eks.cluster_name
   principal_arn = aws_iam_role.argocd_capability[0].arn
-  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy"
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSAdminViewPolicy"
 
   access_scope {
     type = "cluster"
@@ -115,12 +115,12 @@ resource "aws_eks_access_policy_association" "argocd_cluster_view" {
   depends_on = [aws_eks_capability.argocd]
 }
 
-resource "aws_eks_access_policy_association" "argocd_namespace_edit" {
+resource "aws_eks_access_policy_association" "argocd_namespace_admin" {
   count = var.enable_argocd ? 1 : 0
 
   cluster_name  = module.eks.cluster_name
   principal_arn = aws_iam_role.argocd_capability[0].arn
-  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSEditPolicy"
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
 
   access_scope {
     type       = "namespace"

@@ -1,6 +1,7 @@
 locals {
-  name          = "${var.project}-${var.environment}"
-  app_namespace = "${var.project}-${var.environment}"
+  name                = "${var.project}-${var.environment}"
+  app_namespace       = "aiae-${var.environment}"
+  argocd_project_name = "aiae-${var.environment}"
 
   ecr_repository_name = "aidigital.aiae-projects/operational-hub-application"
   secret_name         = var.environment == "prod" ? "AIAE-PRD/operational-hub" : "AIAE-DEV/operational-hub"

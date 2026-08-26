@@ -90,7 +90,7 @@ resource "helm_release" "cluster_bootstrap" {
       namespace              = "argocd"
       clusterArn             = module.eks.cluster_arn
       targetNamespace        = local.app_namespace
-      projectName            = local.name
+      projectName            = local.argocd_project_name
       gitopsBootstrapEnabled = var.enable_gitops_bootstrap
       helmRepositoryUrl      = var.enable_argocd ? local.gitops_helm_repository_url : ""
       versionsRepositoryUrl  = var.enable_argocd ? local.gitops_versions_repository_url : ""
@@ -113,6 +113,6 @@ resource "helm_release" "cluster_bootstrap" {
     module.eks,
     aws_eks_capability.argocd,
     aws_eks_access_policy_association.argocd_cluster_view,
-    aws_eks_access_policy_association.argocd_namespace_edit,
+    aws_eks_access_policy_association.argocd_namespace_admin,
   ]
 }

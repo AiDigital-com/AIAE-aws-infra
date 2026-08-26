@@ -90,6 +90,49 @@ resource "aws_iam_role_policy_attachment" "github_backend_ci" {
   policy_arn = aws_iam_policy.github_backend_ci.arn
 }
 
+data "aws_iam_policy_document" "github_frontend_ci" {
+  count = var.enable_frontend ? 1 : 0
+
+  statement {
+    sid     = "ListFrontendBucket"
+    effect  = "Allow"
+    actions = ["s3:GetBucketLocation", "s3:ListBucket"]
+    resources = [
+      aws_s3_bucket.frontend[0].arn,
+    ]
+  }
+
+  statement {
+    sid    = "DeployFrontendObjects"
+    effect = "Allow"
+    actions = [
+      "s3:DeleteObject",
+      "s3:GetObject",
+      "s3:PutObject",
+    ]
+    resources = [
+      "${aws_s3_bucket.frontend[0].arn}/*",
+    ]
+  }
+
+  statement {
+    sid     = "InvalidateFrontendCache"
+    effect  = "Allow"
+    actions = ["cloudfront:CreateInvalidation"]
+    resources = [
+      aws_cloudfront_distribution.frontend[0].arn,
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "github_frontend_ci" {
+  count = var.enable_frontend ? 1 : 0
+
+  name   = "${local.name}-github-frontend-ci"
+  role   = aws_iam_role.github_backend_ci.id
+  policy = data.aws_iam_policy_document.github_frontend_ci[0].json
+}
+
 resource "aws_ecr_repository" "backend" {
   count = var.create_ecr_repository ? 1 : 0
 

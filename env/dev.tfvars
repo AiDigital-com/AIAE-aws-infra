@@ -33,7 +33,7 @@ enable_secrets_store_csi = true
 route53_zone_name         = ""
 enable_public_certificate = false
 enable_external_dns       = false
-enable_frontend           = false
+enable_frontend           = true
 
 vpc_cidr              = "10.40.0.0/16"
 availability_zones    = ["us-east-1a", "us-east-1b"]
