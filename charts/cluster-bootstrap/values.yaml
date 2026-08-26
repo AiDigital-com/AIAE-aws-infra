@@ -4,7 +4,7 @@ ingress:
   scheme: internet-facing
   publicSubnetIds: []
   certificateARNs: []
-  tags: {}
+  tags: []
 
 argocd:
   enabled: false

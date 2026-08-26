@@ -78,7 +78,12 @@ resource "helm_release" "cluster_bootstrap" {
       scheme          = "internet-facing"
       publicSubnetIds = module.vpc.public_subnets
       certificateARNs = var.enable_public_certificate ? [aws_acm_certificate_validation.api[0].certificate_arn] : []
-      tags            = local.tags
+      tags = [
+        for key, value in local.tags : {
+          key   = key
+          value = value
+        }
+      ]
     }
     argocd = {
       enabled                = var.enable_argocd
