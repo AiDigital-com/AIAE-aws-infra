@@ -142,6 +142,7 @@ Terraform creates the secret container but never writes secret values into Terra
   "POSTGRES_DB": "operational_hub",
   "POSTGRES_USER": "operational_hub",
   "POSTGRES_PASSWORD": "database-password",
+  "CLERK_PUBLISHABLE_KEY": "pk_test_or_live_value",
   "CLERK_SECRET_KEY": "clerk-secret-key",
   "GOOGLE_SERVICE_ACCOUNT_JSON": "{}"
 }
@@ -164,15 +165,17 @@ the Argo CD bootstrap.
 Create GitHub environments `dev` and `prod` in each application repository with:
 
 - `AWS_REGION=us-east-1`
-- `AWS_BACKEND_CI_ROLE_TO_ASSUME=<github_backend_ci_role_arn>`
+- `AWS_ROLE_TO_ASSUME=<github_backend_ci_role_arn>`
+- `APP_CONFIG_SECRET_NAME=AIAE-DEV/operational-hub` for DEV or `AIAE-PRD/operational-hub` for PROD
+- `FRONTEND_BUCKET=<frontend_bucket_name>`
+- `FRONTEND_DISTRIBUTION_ID=<frontend_cloudfront_distribution_id>`
 - `GITOPS_VERSIONS_REPOSITORY=AiDigital-com/AIAE-helm-versions`
 - `GITOPS_HELM_REPOSITORY=AiDigital-com/AIAE-helm`
 - secret `GITOPS_TOKEN`
 
-Keep automatic deployment disabled during bootstrap. After both environment
-stacks and GitHub variables are ready, set the repository variable
-`GITOPS_DEPLOY_ENABLED=true`. Manual `workflow_dispatch` runs remain available
-before that and must be approved explicitly.
+No `GITOPS_DEPLOY_ENABLED` flag is required. DEV deployment is limited to pushes
+to version branches, while PROD is manual and can be protected with GitHub
+Environment reviewers.
 
 ## Liquibase migration
 

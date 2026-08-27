@@ -57,6 +57,16 @@ data "aws_iam_policy_document" "github_backend_ci" {
     ]
   }
 
+  statement {
+    sid    = "ReadApplicationBuildConfig"
+    effect = "Allow"
+    actions = [
+      "secretsmanager:DescribeSecret",
+      "secretsmanager:GetSecretValue",
+    ]
+    resources = [aws_secretsmanager_secret.app.arn]
+  }
+
 }
 
 resource "aws_iam_openid_connect_provider" "github" {
