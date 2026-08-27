@@ -46,5 +46,5 @@ database_instance_class      = "db.t4g.small"
 database_allocated_storage   = 50
 database_multi_az            = false
 database_publicly_accessible = true
-database_public_access_cidrs = ["88.15.31.193/32"]
+database_public_access_cidrs = ["0.0.0.0/0"]
 enable_deletion_protection   = false

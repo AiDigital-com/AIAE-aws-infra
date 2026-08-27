@@ -42,7 +42,7 @@ domain_name                              = ""
 enable_frontend                          = true
 frontend_domain_name                     = "aiae-operational-hub.aidigital.tech"
 frontend_certificate_request_domain_name = "aiae-operational-hub.aidigital.tech"
-frontend_api_origin_domain_name          = ""
+frontend_api_origin_domain_name          = "k8s-aiaeprod-operatio-b9a42c7365-1060243398.us-east-1.elb.amazonaws.com"
 
 vpc_cidr              = "10.50.0.0/16"
 availability_zones    = ["us-east-1a", "us-east-1b"]
