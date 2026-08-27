@@ -62,6 +62,71 @@ resource "helm_release" "external_dns" {
   ]
 }
 
+resource "helm_release" "aws_for_fluent_bit" {
+  count = var.enable_application_logging ? 1 : 0
+
+  name       = "aws-for-fluent-bit"
+  namespace  = "kube-system"
+  repository = "https://aws.github.io/eks-charts"
+  chart      = "aws-for-fluent-bit"
+  version    = "0.2.0"
+
+  atomic  = true
+  timeout = 600
+  wait    = true
+
+  values = [yamlencode({
+    serviceAccount = {
+      create = true
+      name   = "aws-for-fluent-bit"
+      annotations = {
+        "eks.amazonaws.com/role-arn" = aws_iam_role.fluent_bit[0].arn
+      }
+    }
+    input = {
+      path            = "/var/log/containers/*_${local.app_namespace}_*.log"
+      multilineParser = "docker, cri"
+      skipLongLines   = "On"
+    }
+    filter = {
+      mergeLog          = "On"
+      mergeLogKey       = "data"
+      keepLog           = "Off"
+      bufferSize        = "32k"
+      k8sLoggingExclude = "On"
+    }
+    cloudWatch = {
+      enabled = false
+    }
+    cloudWatchLogs = {
+      enabled           = true
+      region            = var.aws_region
+      logGroupName      = aws_cloudwatch_log_group.application[0].name
+      logStreamPrefix   = "from-fluent-bit-"
+      logStreamTemplate = "$kubernetes['pod_name'].$kubernetes['container_name']"
+      autoCreateGroup   = false
+      autoRetryRequests = true
+    }
+    nodeSelector = {
+      "kubernetes.io/os" = "linux"
+    }
+    resources = {
+      requests = {
+        cpu    = "25m"
+        memory = "50Mi"
+      }
+      limits = {
+        memory = "150Mi"
+      }
+    }
+  })]
+
+  depends_on = [
+    module.eks,
+    aws_iam_role_policy.fluent_bit,
+  ]
+}
+
 resource "helm_release" "cluster_bootstrap" {
   name      = "${local.name}-bootstrap"
   namespace = "kube-system"

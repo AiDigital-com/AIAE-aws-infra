@@ -45,6 +45,62 @@ resource "aws_iam_role_policy" "application" {
   policy = data.aws_iam_policy_document.application.json
 }
 
+data "aws_iam_policy_document" "fluent_bit_assume_role" {
+  count = var.enable_application_logging ? 1 : 0
+
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [module.eks.oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${module.eks.oidc_provider}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${module.eks.oidc_provider}:sub"
+      values   = ["system:serviceaccount:kube-system:aws-for-fluent-bit"]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "fluent_bit" {
+  count = var.enable_application_logging ? 1 : 0
+
+  statement {
+    sid    = "WriteApplicationLogs"
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogStream",
+      "logs:DescribeLogStreams",
+      "logs:PutLogEvents",
+    ]
+    resources = ["${aws_cloudwatch_log_group.application[0].arn}:*"]
+  }
+}
+
+resource "aws_iam_role" "fluent_bit" {
+  count = var.enable_application_logging ? 1 : 0
+
+  name               = "${local.name}-fluent-bit"
+  assume_role_policy = data.aws_iam_policy_document.fluent_bit_assume_role[0].json
+}
+
+resource "aws_iam_role_policy" "fluent_bit" {
+  count = var.enable_application_logging ? 1 : 0
+
+  name   = "${local.name}-cloudwatch-logs"
+  role   = aws_iam_role.fluent_bit[0].id
+  policy = data.aws_iam_policy_document.fluent_bit[0].json
+}
+
 data "aws_iam_policy_document" "external_dns_assume_role" {
   count = var.enable_external_dns ? 1 : 0
 

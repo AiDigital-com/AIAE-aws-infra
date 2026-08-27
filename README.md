@@ -38,6 +38,7 @@ Optional feature flags add:
 - GitHub CodeConnections authentication and Argo CD GitOps bootstrap.
 - ACM certificate, Route53 DNS validation, and ExternalDNS when a Route53 zone is available.
 - Private S3 + CloudFront frontend hosting.
+- Application stdout delivery to CloudWatch Logs through AWS for Fluent Bit. It is enabled only in PROD and retains logs for one day.
 
 ## Prerequisites
 

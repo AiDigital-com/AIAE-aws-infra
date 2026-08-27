@@ -8,6 +8,13 @@ resource "aws_cloudwatch_log_group" "rds_upgrade" {
   retention_in_days = var.rds_cloudwatch_log_retention_days
 }
 
+resource "aws_cloudwatch_log_group" "application" {
+  count = var.enable_application_logging ? 1 : 0
+
+  name              = "/aws/containerinsights/${local.name}/application"
+  retention_in_days = var.application_log_retention_days
+}
+
 resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
   alarm_name          = "${local.name}-rds-cpu-high"
   alarm_description   = "RDS CPU utilization is above 80 percent for 15 minutes."

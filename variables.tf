@@ -80,6 +80,26 @@ variable "eks_cloudwatch_log_retention_days" {
   default     = 30
 }
 
+variable "enable_application_logging" {
+  type        = bool
+  description = "Ship application container stdout from the workload namespace to CloudWatch Logs."
+  default     = false
+}
+
+variable "application_log_retention_days" {
+  type        = number
+  description = "Retention period for application container logs shipped to CloudWatch Logs."
+  default     = 1
+
+  validation {
+    condition = contains([
+      1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731,
+      1096, 1827, 2192, 2557, 2922, 3288, 3653,
+    ], var.application_log_retention_days)
+    error_message = "application_log_retention_days must be a CloudWatch Logs supported retention value."
+  }
+}
+
 variable "github_org" {
   type        = string
   description = "GitHub owner or org that hosts the application and GitOps repositories."

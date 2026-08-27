@@ -3,6 +3,11 @@ environment = "prod"
 aws_account_id = "125093118532"
 aws_region     = "us-east-1"
 
+eks_cloudwatch_log_retention_days = 1
+rds_cloudwatch_log_retention_days = 1
+enable_application_logging        = true
+application_log_retention_days    = 1
+
 github_org = "AiDigital-com"
 github_oidc_subjects = [
   "repo:AiDigital-com@184130113/AIAE-operational-hub@1327019535:environment:prod",

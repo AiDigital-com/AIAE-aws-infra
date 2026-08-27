@@ -102,6 +102,37 @@ run "base_dev" {
     condition     = aws_db_instance.postgres.publicly_accessible && aws_db_instance.postgres.backup_retention_period == 0
     error_message = "DEV RDS must be publicly reachable from approved CIDRs and have automated backups disabled."
   }
+
+  assert {
+    condition     = length(aws_cloudwatch_log_group.application) == 0 && length(helm_release.aws_for_fluent_bit) == 0
+    error_message = "Application log shipping must remain disabled in DEV."
+  }
+}
+
+run "prod_application_logging" {
+  command = plan
+
+  variables {
+    environment                    = "prod"
+    create_ecr_repository          = true
+    create_github_oidc_provider    = true
+    enable_argocd                  = false
+    enable_gitops_bootstrap        = false
+    enable_external_dns            = false
+    enable_public_certificate      = false
+    enable_frontend                = false
+    enable_deletion_protection     = false
+    enable_application_logging     = true
+    application_log_retention_days = 1
+  }
+
+  assert {
+    condition = (
+      aws_cloudwatch_log_group.application[0].retention_in_days == 1 &&
+      helm_release.aws_for_fluent_bit[0].namespace == "kube-system"
+    )
+    error_message = "PROD application logging must ship to a one-day CloudWatch Logs group."
+  }
 }
 
 run "custom_github_oidc_subject" {

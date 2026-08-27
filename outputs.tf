@@ -23,6 +23,11 @@ output "eks_cluster_name" {
   value       = module.eks.cluster_name
 }
 
+output "application_log_group_name" {
+  description = "CloudWatch Logs group receiving application container stdout."
+  value       = try(aws_cloudwatch_log_group.application[0].name, null)
+}
+
 output "rds_endpoint" {
   description = "RDS PostgreSQL endpoint."
   value       = aws_db_instance.postgres.address
