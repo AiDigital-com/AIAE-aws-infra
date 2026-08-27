@@ -38,7 +38,9 @@ public_subnet_cidrs   = ["10.50.0.0/24", "10.50.1.0/24"]
 private_subnet_cidrs  = ["10.50.10.0/24", "10.50.11.0/24"]
 database_subnet_cidrs = ["10.50.20.0/24", "10.50.21.0/24"]
 
-database_instance_class    = "db.t4g.medium"
-database_allocated_storage = 100
-database_multi_az          = true
-enable_deletion_protection = true
+database_instance_class      = "db.t4g.medium"
+database_allocated_storage   = 100
+database_multi_az            = true
+database_publicly_accessible = false
+database_public_access_cidrs = []
+enable_deletion_protection   = true

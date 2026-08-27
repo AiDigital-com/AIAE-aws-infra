@@ -305,6 +305,25 @@ variable "database_multi_az" {
   default     = false
 }
 
+variable "database_publicly_accessible" {
+  type        = bool
+  description = "Whether RDS receives a public endpoint. Keep false for production."
+  default     = false
+}
+
+variable "database_public_access_cidrs" {
+  type        = list(string)
+  description = "External CIDRs allowed to reach a publicly accessible RDS instance."
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for cidr in var.database_public_access_cidrs : can(cidrhost(cidr, 0))
+    ])
+    error_message = "Every database_public_access_cidrs value must be a valid CIDR."
+  }
+}
+
 variable "domain_name" {
   type        = string
   description = "Public application domain for prod. Dev should use a separate host."

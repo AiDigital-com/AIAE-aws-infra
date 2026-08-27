@@ -45,15 +45,17 @@ run "base_dev" {
   command = plan
 
   variables {
-    environment                 = "dev"
-    create_ecr_repository       = true
-    create_github_oidc_provider = true
-    enable_argocd               = false
-    enable_gitops_bootstrap     = false
-    enable_external_dns         = false
-    enable_public_certificate   = false
-    enable_frontend             = false
-    enable_deletion_protection  = false
+    environment                  = "dev"
+    create_ecr_repository        = true
+    create_github_oidc_provider  = true
+    enable_argocd                = false
+    enable_gitops_bootstrap      = false
+    enable_external_dns          = false
+    enable_public_certificate    = false
+    enable_frontend              = false
+    enable_deletion_protection   = false
+    database_publicly_accessible = true
+    database_public_access_cidrs = ["203.0.113.10/32"]
   }
 
   assert {
@@ -94,6 +96,11 @@ run "base_dev" {
   assert {
     condition     = jsondecode(aws_ecr_lifecycle_policy.backend[0].policy).rules[0].selection.countNumber == 60
     error_message = "DEV ECR must retain 30 application and Liquibase snapshot pairs."
+  }
+
+  assert {
+    condition     = aws_db_instance.postgres.publicly_accessible && aws_db_instance.postgres.backup_retention_period == 0
+    error_message = "DEV RDS must be publicly reachable from approved CIDRs and have automated backups disabled."
   }
 }
 
@@ -150,8 +157,9 @@ run "full_prod" {
     enable_public_certificate = true
     enable_external_dns       = true
 
-    enable_frontend      = true
-    frontend_domain_name = "hub.aidigital.tech"
+    enable_frontend              = true
+    frontend_domain_name         = "hub.aidigital.tech"
+    database_publicly_accessible = false
   }
 
   assert {
@@ -194,5 +202,10 @@ run "full_prod" {
   assert {
     condition     = jsondecode(aws_ecr_lifecycle_policy.backend[0].policy).rules[0].selection.tagStatus == "untagged"
     error_message = "Production lifecycle must not expire tagged release images."
+  }
+
+  assert {
+    condition     = !aws_db_instance.postgres.publicly_accessible && aws_db_instance.postgres.backup_retention_period == 14
+    error_message = "Production RDS must remain private with 14 days of automated backups."
   }
 }

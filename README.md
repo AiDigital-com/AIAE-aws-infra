@@ -24,7 +24,7 @@ Each environment stack creates:
 
 - VPC with public, private, and database subnets, NAT gateways, and VPC flow logs.
 - EKS Auto Mode with control-plane CloudWatch logs and IRSA enabled.
-- Private RDS PostgreSQL with managed master credentials, backups, log exports, and alarms.
+- RDS PostgreSQL with managed master credentials, environment-specific network access and backups, log exports, and alarms.
 - ECR repository `aidigital.aiae-projects/operational-hub-application`.
 - Secrets Manager container `AIAE-DEV/operational-hub` or `AIAE-PRD/operational-hub`.
 - Application IAM role restricted to the environment secret.
@@ -91,6 +91,11 @@ AWS_PROFILE=aiae-prod terraform apply -var-file=env/prod.tfvars
 
 The initial base apply leaves Argo CD, DNS, and frontend flags disabled until their external inputs are available.
 
+DEV RDS is publicly reachable only from the CIDRs listed in
+`database_public_access_cidrs` and has automated backups disabled. Update the
+`/32` entry in `env/dev.tfvars` when the developer's public IP changes. PROD
+RDS remains private, Multi-AZ, and retains automated backups for 14 days.
+
 ## 3. Configure GitHub and Argo CD
 
 In each account, set `create_github_codeconnection = true` and apply once. AWS creates the connection in `PENDING`; complete its GitHub authorization in the AWS CodeConnections console. Terraform cannot complete that OAuth handshake.
@@ -138,8 +143,7 @@ Terraform creates the secret container but never writes secret values into Terra
   "POSTGRES_USER": "operational_hub",
   "POSTGRES_PASSWORD": "database-password",
   "CLERK_SECRET_KEY": "clerk-secret-key",
-  "GOOGLE_SERVICE_ACCOUNT_JSON": "{}",
-  "SESSION_SECRET": "session-secret"
+  "GOOGLE_SERVICE_ACCOUNT_JSON": "{}"
 }
 ```
 

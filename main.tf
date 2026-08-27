@@ -240,11 +240,14 @@ resource "aws_security_group" "rds" {
   vpc_id      = module.vpc.vpc_id
 
   ingress {
-    description = "PostgreSQL from VPC"
+    description = "PostgreSQL from approved networks"
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
+    cidr_blocks = concat(
+      [var.vpc_cidr],
+      var.database_publicly_accessible ? var.database_public_access_cidrs : [],
+    )
   }
 
   egress {
@@ -288,6 +291,13 @@ resource "aws_db_subnet_group" "postgres" {
   subnet_ids = module.vpc.database_subnets
 }
 
+resource "aws_db_subnet_group" "postgres_public" {
+  count = var.database_publicly_accessible ? 1 : 0
+
+  name       = "${local.name}-postgres-public"
+  subnet_ids = module.vpc.public_subnets
+}
+
 resource "aws_db_instance" "postgres" {
   identifier = "${local.name}-postgres"
 
@@ -304,12 +314,15 @@ resource "aws_db_instance" "postgres" {
 
   manage_master_user_password = true
 
-  db_subnet_group_name   = aws_db_subnet_group.postgres.name
+  db_subnet_group_name = var.database_publicly_accessible ? (
+    aws_db_subnet_group.postgres_public[0].name
+  ) : aws_db_subnet_group.postgres.name
   vpc_security_group_ids = [aws_security_group.rds.id]
-  publicly_accessible    = false
+  publicly_accessible    = var.database_publicly_accessible
   multi_az               = var.database_multi_az
+  apply_immediately      = var.environment != "prod"
 
-  backup_retention_period   = var.environment == "prod" ? 14 : 3
+  backup_retention_period   = var.environment == "prod" ? 14 : 0
   deletion_protection       = var.enable_deletion_protection
   skip_final_snapshot       = var.environment != "prod"
   final_snapshot_identifier = var.environment == "prod" ? "${local.name}-postgres-final" : null
@@ -322,6 +335,13 @@ resource "aws_db_instance" "postgres" {
     aws_cloudwatch_log_group.rds_postgresql,
     aws_cloudwatch_log_group.rds_upgrade,
   ]
+
+  lifecycle {
+    precondition {
+      condition     = !var.database_publicly_accessible || length(var.database_public_access_cidrs) > 0
+      error_message = "database_public_access_cidrs must contain at least one CIDR when RDS is public."
+    }
+  }
 }
 
 resource "aws_secretsmanager_secret" "app" {
