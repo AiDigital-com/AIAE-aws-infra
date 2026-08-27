@@ -17,7 +17,7 @@ github_codeconnection_arn    = ""
 # Enable after AWS Identity Center group/user IDs are known and the GitHub
 # CodeConnections handshake is AVAILABLE.
 enable_argocd           = true
-enable_gitops_bootstrap = false
+enable_gitops_bootstrap = true
 argocd_idc_instance_arn = "arn:aws:sso:::instance/ssoins-7223b53871c5ac5f"
 argocd_rbac_role_mappings = {
   platform_admins = {
@@ -40,7 +40,7 @@ enable_public_certificate                = false
 enable_external_dns                      = false
 domain_name                              = ""
 enable_frontend                          = true
-frontend_domain_name                     = ""
+frontend_domain_name                     = "aiae-operational-hub.aidigital.tech"
 frontend_certificate_request_domain_name = "aiae-operational-hub.aidigital.tech"
 frontend_api_origin_domain_name          = ""
 

@@ -209,3 +209,32 @@ run "full_prod" {
     error_message = "Production RDS must remain private with 14 days of automated backups."
   }
 }
+
+run "frontend_with_external_dns" {
+  command = plan
+
+  variables {
+    environment                  = "prod"
+    vpc_cidr                     = "10.50.0.0/16"
+    create_ecr_repository        = true
+    create_github_oidc_provider  = true
+    enable_argocd                = false
+    enable_gitops_bootstrap      = false
+    enable_external_dns          = false
+    enable_public_certificate    = false
+    route53_zone_name            = ""
+    enable_frontend              = true
+    frontend_domain_name         = "hub.example.com"
+    database_publicly_accessible = false
+  }
+
+  assert {
+    condition     = length(aws_acm_certificate.frontend) == 1
+    error_message = "External DNS must still provision the frontend ACM certificate."
+  }
+
+  assert {
+    condition     = length(aws_route53_record.frontend_a) == 0 && length(aws_route53_record.frontend_aaaa) == 0
+    error_message = "External DNS must not provision Route53 alias records."
+  }
+}

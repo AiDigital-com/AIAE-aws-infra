@@ -282,7 +282,7 @@ resource "aws_s3_bucket_policy" "frontend" {
 }
 
 resource "aws_route53_record" "frontend_a" {
-  count = var.enable_frontend && var.frontend_domain_name != "" ? 1 : 0
+  count = var.enable_frontend && var.frontend_domain_name != "" && local.route53_enabled ? 1 : 0
 
   zone_id = data.aws_route53_zone.public[0].zone_id
   name    = var.frontend_domain_name
@@ -296,7 +296,7 @@ resource "aws_route53_record" "frontend_a" {
 }
 
 resource "aws_route53_record" "frontend_aaaa" {
-  count = var.enable_frontend && var.frontend_domain_name != "" ? 1 : 0
+  count = var.enable_frontend && var.frontend_domain_name != "" && local.route53_enabled ? 1 : 0
 
   zone_id = data.aws_route53_zone.public[0].zone_id
   name    = var.frontend_domain_name
