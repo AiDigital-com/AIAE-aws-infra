@@ -153,15 +153,45 @@ resource "aws_ecr_lifecycle_policy" "backend" {
 
   repository = aws_ecr_repository.backend[0].name
 
-  policy = jsonencode({
+  policy = var.environment == "dev" ? jsonencode({
     rules = [
       {
         rulePriority = 1
-        description  = "Keep last 50 images"
+        description  = "Keep the latest ${var.dev_snapshot_image_pair_retention} DEV application and Liquibase snapshot pairs"
         selection = {
-          tagStatus   = "any"
-          countType   = "imageCountMoreThan"
-          countNumber = 50
+          tagStatus      = "tagged"
+          tagPatternList = ["*-snapshot-*"]
+          countType      = "imageCountMoreThan"
+          countNumber    = var.dev_snapshot_image_pair_retention * 2
+        }
+        action = {
+          type = "expire"
+        }
+      },
+      {
+        rulePriority = 2
+        description  = "Delete untagged DEV images after one day"
+        selection = {
+          tagStatus   = "untagged"
+          countType   = "sinceImagePushed"
+          countUnit   = "days"
+          countNumber = 1
+        }
+        action = {
+          type = "expire"
+        }
+      },
+    ]
+    }) : jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Retain immutable production release tags and delete untagged images after 14 days"
+        selection = {
+          tagStatus   = "untagged"
+          countType   = "sinceImagePushed"
+          countUnit   = "days"
+          countNumber = 14
         }
         action = {
           type = "expire"

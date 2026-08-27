@@ -85,6 +85,16 @@ run "base_dev" {
     condition     = length(aws_cloudfront_distribution.frontend) == 0
     error_message = "Frontend resources must remain disabled in the base stack."
   }
+
+  assert {
+    condition     = aws_ecr_repository.backend[0].image_tag_mutability == "IMMUTABLE"
+    error_message = "DEV image tags must remain immutable."
+  }
+
+  assert {
+    condition     = jsondecode(aws_ecr_lifecycle_policy.backend[0].policy).rules[0].selection.countNumber == 60
+    error_message = "DEV ECR must retain 30 application and Liquibase snapshot pairs."
+  }
 }
 
 run "custom_github_oidc_subject" {
@@ -174,5 +184,15 @@ run "full_prod" {
       "repo:AiDigital-com/AIAE-operational-hub:environment:prod",
     ])
     error_message = "The prod GitHub OIDC trust must be limited to the prod environment."
+  }
+
+  assert {
+    condition     = aws_ecr_repository.backend[0].image_tag_mutability == "IMMUTABLE"
+    error_message = "Production release tags must remain immutable."
+  }
+
+  assert {
+    condition     = jsondecode(aws_ecr_lifecycle_policy.backend[0].policy).rules[0].selection.tagStatus == "untagged"
+    error_message = "Production lifecycle must not expire tagged release images."
   }
 }

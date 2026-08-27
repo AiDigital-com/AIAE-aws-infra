@@ -139,6 +139,17 @@ variable "create_ecr_repository" {
   default     = false
 }
 
+variable "dev_snapshot_image_pair_retention" {
+  type        = number
+  description = "Number of immutable DEV application and Liquibase snapshot pairs retained in ECR."
+  default     = 30
+
+  validation {
+    condition     = var.dev_snapshot_image_pair_retention >= 1
+    error_message = "dev_snapshot_image_pair_retention must be at least 1."
+  }
+}
+
 variable "create_github_codeconnection" {
   type        = bool
   description = "Create the shared GitHub CodeConnections connection. It must be authorized once in the AWS console."
