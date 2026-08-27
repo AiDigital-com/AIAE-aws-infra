@@ -8,6 +8,14 @@ rds_cloudwatch_log_retention_days = 1
 enable_application_logging        = true
 application_log_retention_days    = 1
 
+# Production-only metrics stack. DEV keeps the module default (disabled).
+enable_observability       = true
+prometheus_scrape_interval = "60s"
+prometheus_retention_days  = 30
+# Managed Grafana supports the organization Identity Center instance only.
+# Add role mappings after the organization administrator provisions the users.
+grafana_rbac_role_mappings = {}
+
 github_org = "AiDigital-com"
 github_oidc_subjects = [
   "repo:AiDigital-com@184130113/AIAE-operational-hub@1327019535:environment:prod",

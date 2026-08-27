@@ -4,6 +4,21 @@ mock_provider "aws" {
       json = "{\"Version\":\"2012-10-17\",\"Statement\":[]}"
     }
   }
+
+  mock_resource "aws_prometheus_workspace" {
+    defaults = {
+      arn                 = "arn:aws:aps:us-east-1:125093118532:workspace/ws-test"
+      id                  = "ws-test"
+      prometheus_endpoint = "https://aps-workspaces.us-east-1.amazonaws.com/workspaces/ws-test/"
+    }
+  }
+
+  mock_resource "aws_grafana_workspace" {
+    defaults = {
+      endpoint = "g-test.grafana-workspace.us-east-1.amazonaws.com"
+      id       = "g-test"
+    }
+  }
 }
 mock_provider "helm" {}
 
@@ -107,6 +122,16 @@ run "base_dev" {
     condition     = length(aws_cloudwatch_log_group.application) == 0 && length(helm_release.aws_for_fluent_bit) == 0
     error_message = "Application log shipping must remain disabled in DEV."
   }
+
+  assert {
+    condition = (
+      length(aws_prometheus_workspace.production) == 0 &&
+      length(aws_grafana_workspace.production) == 0 &&
+      length(helm_release.prometheus_collector) == 0 &&
+      length(helm_release.postgres_exporter) == 0
+    )
+    error_message = "The production-only observability stack must remain disabled in DEV."
+  }
 }
 
 run "prod_application_logging" {
@@ -132,6 +157,56 @@ run "prod_application_logging" {
       helm_release.aws_for_fluent_bit[0].namespace == "kube-system"
     )
     error_message = "PROD application logging must ship to a one-day CloudWatch Logs group."
+  }
+}
+
+run "prod_observability" {
+  command = plan
+
+  variables {
+    environment                 = "prod"
+    create_ecr_repository       = true
+    create_github_oidc_provider = true
+    enable_argocd               = false
+    enable_gitops_bootstrap     = false
+    enable_external_dns         = false
+    enable_public_certificate   = false
+    enable_frontend             = false
+    enable_deletion_protection  = false
+    enable_observability        = true
+    prometheus_scrape_interval  = "60s"
+    prometheus_retention_days   = 30
+    grafana_rbac_role_mappings = {
+      admins = {
+        role     = "ADMIN"
+        user_ids = ["54f84478-80b1-7007-29f9-491c4b1c5359"]
+      }
+    }
+  }
+
+  assert {
+    condition = (
+      length(aws_prometheus_workspace.production) == 1 &&
+      length(aws_grafana_workspace.production) == 1 &&
+      length(helm_release.prometheus_collector) == 1 &&
+      length(helm_release.postgres_exporter) == 1
+    )
+    error_message = "Production observability must include AMP, Managed Grafana, a collector, and PostgreSQL exporter."
+  }
+
+  assert {
+    condition     = aws_prometheus_workspace_configuration.production[0].retention_period_in_days == 30
+    error_message = "AMP retention must use the configured 30-day production value."
+  }
+
+  assert {
+    condition     = helm_release.prometheus_collector[0].namespace == "monitoring"
+    error_message = "The Prometheus collector must run in the monitoring namespace."
+  }
+
+  assert {
+    condition     = helm_release.postgres_exporter[0].namespace == "aiae-prod"
+    error_message = "The PostgreSQL exporter must run beside the application secret in aiae-prod."
   }
 }
 

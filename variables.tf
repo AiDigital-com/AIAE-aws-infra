@@ -100,6 +100,58 @@ variable "application_log_retention_days" {
   }
 }
 
+variable "enable_observability" {
+  type        = bool
+  description = "Create the production AMP, Managed Grafana, Prometheus collector, and PostgreSQL exporter stack."
+  default     = false
+
+  validation {
+    condition     = !var.enable_observability || var.environment == "prod"
+    error_message = "Observability is intentionally production-only."
+  }
+}
+
+variable "prometheus_scrape_interval" {
+  type        = string
+  description = "Prometheus scrape interval used by the production collector."
+  default     = "60s"
+
+  validation {
+    condition     = can(regex("^[1-9][0-9]*[smh]$", var.prometheus_scrape_interval))
+    error_message = "prometheus_scrape_interval must be a positive duration such as 60s or 1m."
+  }
+}
+
+variable "prometheus_retention_days" {
+  type        = number
+  description = "Retention period for metrics stored in Amazon Managed Service for Prometheus."
+  default     = 30
+
+  validation {
+    condition     = var.prometheus_retention_days >= 1 && var.prometheus_retention_days <= 1095
+    error_message = "prometheus_retention_days must be between 1 and 1095 days."
+  }
+}
+
+variable "grafana_rbac_role_mappings" {
+  type = map(object({
+    role      = string
+    group_ids = optional(set(string), [])
+    user_ids  = optional(set(string), [])
+  }))
+  description = "Identity Center users/groups assigned ADMIN, EDITOR, or VIEWER access to Managed Grafana."
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for mapping in values(var.grafana_rbac_role_mappings) :
+      contains(["ADMIN", "EDITOR", "VIEWER"], mapping.role) &&
+      length(setunion(mapping.group_ids, mapping.user_ids)) > 0
+    ])
+    error_message = "Each Grafana mapping must use ADMIN, EDITOR, or VIEWER and contain at least one user or group ID."
+  }
+}
+
 variable "github_org" {
   type        = string
   description = "GitHub owner or org that hosts the application and GitOps repositories."

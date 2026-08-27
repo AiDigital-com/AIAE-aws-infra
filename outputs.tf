@@ -111,3 +111,18 @@ output "frontend_url" {
     null,
   )
 }
+
+output "prometheus_workspace_id" {
+  description = "Amazon Managed Service for Prometheus workspace ID."
+  value       = try(aws_prometheus_workspace.production[0].id, null)
+}
+
+output "prometheus_query_endpoint" {
+  description = "Prometheus-compatible endpoint used by Grafana after observability is enabled."
+  value       = try(aws_prometheus_workspace.production[0].prometheus_endpoint, null)
+}
+
+output "grafana_workspace_url" {
+  description = "Amazon Managed Grafana workspace URL."
+  value       = try("https://${aws_grafana_workspace.production[0].endpoint}", null)
+}
