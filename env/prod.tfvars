@@ -12,9 +12,23 @@ application_log_retention_days    = 1
 enable_observability       = true
 prometheus_scrape_interval = "60s"
 prometheus_retention_days  = 30
-# Managed Grafana supports the organization Identity Center instance only.
-# Add role mappings after the organization administrator provisions the users.
-grafana_rbac_role_mappings = {}
+# Managed Grafana uses users from the organization Identity Center instance.
+grafana_rbac_role_mappings = {
+  platform_admins = {
+    role = "ADMIN"
+    user_ids = [
+      "e4d8b4d8-2011-7065-8ede-acee6afd190d", #gleb.mozhaiskii@aidigital.com
+      "9468a498-c0f1-70c2-0935-4e1bd435e417", # azat.nabiev@aidigital.com
+    ]
+  }
+  platform_viewers = {
+    role = "VIEWER"
+    user_ids = [
+      "e4d8b4b8-6031-7058-dd27-9bb11a2b34d5", # beatris.felises@aidigital.com
+      "4498a4d8-a0c1-70fb-1236-5886e519a328", # illia.holubiev@aidigital.com
+    ]
+  }
+}
 
 github_org = "AiDigital-com"
 github_oidc_subjects = [

@@ -339,7 +339,7 @@ resource "aws_db_instance" "postgres" {
   skip_final_snapshot       = var.environment != "prod"
   final_snapshot_identifier = var.environment == "prod" ? "${local.name}-postgres-final" : null
 
-  performance_insights_enabled = true
+  performance_insights_enabled = false
 
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
 

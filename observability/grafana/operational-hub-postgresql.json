@@ -1,9 +1,8 @@
 {
-  "annotations": {
-    "list": []
-  },
+  "annotations": {"list": []},
   "editable": true,
   "graphTooltip": 1,
+  "links": [],
   "panels": [
     {
       "id": 1,
@@ -196,7 +195,16 @@
             "uid": "${DS_PROMETHEUS}"
           }
         }
-      ]
+      ],
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true,
+          "width": 420
+        }
+      }
     },
     {
       "id": 8,
@@ -233,6 +241,15 @@
           "unit": "tps"
         },
         "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true,
+          "width": 420
+        }
       }
     },
     {
@@ -270,6 +287,15 @@
           "unit": "rows"
         },
         "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true,
+          "width": 420
+        }
       }
     },
     {
@@ -316,6 +342,15 @@
           "unit": "rows"
         },
         "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true,
+          "width": 420
+        }
       }
     },
     {
@@ -347,7 +382,16 @@
             "uid": "${DS_PROMETHEUS}"
           }
         }
-      ]
+      ],
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true,
+          "width": 420
+        }
+      }
     },
     {
       "id": 12,
@@ -369,7 +413,16 @@
             "uid": "${DS_PROMETHEUS}"
           }
         }
-      ]
+      ],
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true,
+          "width": 420
+        }
+      }
     },
     {
       "id": 13,
@@ -406,6 +459,15 @@
           "unit": "s"
         },
         "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true,
+          "width": 420
+        }
       }
     },
     {
@@ -464,7 +526,16 @@
             "uid": "${DS_PROMETHEUS}"
           }
         }
-      ]
+      ],
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "right",
+          "showLegend": true,
+          "width": 420
+        }
+      }
     },
     {
       "id": 15,

@@ -14,17 +14,7 @@ locals {
     "cache_.*",
     "bigquery_.*",
     "tomcat_threads_.*",
-    "kube_deployment_.*",
-    "kube_pod_container_status_(ready|restarts_total)",
-    "kube_horizontalpodautoscaler_.*",
-    "kube_node_status_condition",
-    "container_cpu_(usage_seconds_total|cfs_periods_total|cfs_throttled_periods_total)",
-    "container_memory_working_set_bytes",
-    "node_cpu_seconds_total",
-    "node_memory_(MemAvailable|MemTotal)_bytes",
-    "node_filesystem_(avail|size)_bytes",
     "pg_.*",
-    "prometheus_remote_storage_.*",
   ])
 }
 
@@ -149,44 +139,95 @@ resource "helm_release" "prometheus_collector" {
         }
       }
     }
-    extraScrapeConfigs = yamlencode([{
-      job_name     = "operational-hub-api"
-      metrics_path = "/actuator/prometheus"
-      kubernetes_sd_configs = [{
-        role = "endpointslice"
-        namespaces = {
-          names = [local.app_namespace]
-        }
-      }]
-      relabel_configs = [
-        {
-          source_labels = ["__meta_kubernetes_service_name"]
-          regex         = "operational-hub-api"
-          action        = "keep"
-        },
-        {
-          source_labels = ["__meta_kubernetes_endpointslice_port_name"]
-          regex         = "http"
-          action        = "keep"
-        },
-        {
-          source_labels = ["__meta_kubernetes_namespace"]
-          target_label  = "namespace"
-        },
-        {
-          source_labels = ["__meta_kubernetes_pod_name"]
-          target_label  = "pod"
-        },
-        {
-          target_label = "service"
-          replacement  = "operational-hub-api"
-        },
-        {
-          target_label = "environment"
-          replacement  = var.environment
-        },
-      ]
-    }])
+    scrapeConfigs = {
+      prometheus                        = { enabled = false }
+      kubernetes-api-servers            = { enabled = false }
+      kubernetes-nodes                  = { enabled = false }
+      kubernetes-nodes-cadvisor         = { enabled = false }
+      kubernetes-service-endpoints      = { enabled = false }
+      kubernetes-service-endpoints-slow = { enabled = false }
+      prometheus-pushgateway            = { enabled = false }
+      kubernetes-services               = { enabled = false }
+      kubernetes-pods                   = { enabled = false }
+      kubernetes-pods-slow              = { enabled = false }
+    }
+    extraScrapeConfigs = yamlencode([
+      {
+        job_name     = "operational-hub-api"
+        metrics_path = "/actuator/prometheus"
+        kubernetes_sd_configs = [{
+          role = "endpointslice"
+          namespaces = {
+            names = [local.app_namespace]
+          }
+        }]
+        relabel_configs = [
+          {
+            source_labels = ["__meta_kubernetes_service_name"]
+            regex         = "operational-hub-api"
+            action        = "keep"
+          },
+          {
+            source_labels = ["__meta_kubernetes_endpointslice_port_name"]
+            regex         = "http"
+            action        = "keep"
+          },
+          {
+            source_labels = ["__meta_kubernetes_namespace"]
+            target_label  = "namespace"
+          },
+          {
+            source_labels = ["__meta_kubernetes_pod_name"]
+            target_label  = "pod"
+          },
+          {
+            target_label = "service"
+            replacement  = "operational-hub-api"
+          },
+          {
+            target_label = "environment"
+            replacement  = var.environment
+          },
+        ]
+      },
+      {
+        job_name = "operational-hub-postgresql"
+        kubernetes_sd_configs = [{
+          role = "endpointslice"
+          namespaces = {
+            names = [local.app_namespace]
+          }
+        }]
+        relabel_configs = [
+          {
+            source_labels = ["__meta_kubernetes_service_name"]
+            regex         = "postgres-exporter-prometheus-postgres-exporter"
+            action        = "keep"
+          },
+          {
+            source_labels = ["__meta_kubernetes_endpointslice_port_name"]
+            regex         = "http"
+            action        = "keep"
+          },
+          {
+            source_labels = ["__meta_kubernetes_namespace"]
+            target_label  = "namespace"
+          },
+          {
+            source_labels = ["__meta_kubernetes_pod_name"]
+            target_label  = "pod"
+          },
+          {
+            target_label = "service"
+            replacement  = "operational-hub-postgresql"
+          },
+          {
+            target_label = "environment"
+            replacement  = var.environment
+          },
+        ]
+      },
+    ])
     alertmanager = {
       enabled = false
     }
@@ -194,28 +235,10 @@ resource "helm_release" "prometheus_collector" {
       enabled = false
     }
     kube-state-metrics = {
-      enabled = true
-      resources = {
-        requests = {
-          cpu    = "25m"
-          memory = "64Mi"
-        }
-        limits = {
-          memory = "192Mi"
-        }
-      }
+      enabled = false
     }
     prometheus-node-exporter = {
-      enabled = true
-      resources = {
-        requests = {
-          cpu    = "25m"
-          memory = "32Mi"
-        }
-        limits = {
-          memory = "96Mi"
-        }
-      }
+      enabled = false
     }
   })]
 
@@ -324,27 +347,6 @@ data "aws_iam_policy_document" "grafana_data_sources" {
     resources = ["*"]
   }
 
-  statement {
-    sid    = "ReadCloudWatch"
-    effect = "Allow"
-    actions = [
-      "cloudwatch:DescribeAlarms",
-      "cloudwatch:GetMetricData",
-      "cloudwatch:GetMetricStatistics",
-      "cloudwatch:ListMetrics",
-      "ec2:DescribeInstances",
-      "ec2:DescribeRegions",
-      "ec2:DescribeTags",
-      "logs:DescribeLogGroups",
-      "logs:GetLogEvents",
-      "logs:GetLogGroupFields",
-      "logs:GetQueryResults",
-      "logs:StartQuery",
-      "logs:StopQuery",
-      "tag:GetResources",
-    ]
-    resources = ["*"]
-  }
 }
 
 resource "aws_iam_role" "grafana" {
@@ -371,7 +373,7 @@ resource "aws_grafana_workspace" "production" {
   authentication_providers = ["AWS_SSO"]
   permission_type          = "CUSTOMER_MANAGED"
   role_arn                 = aws_iam_role.grafana[0].arn
-  data_sources             = ["PROMETHEUS", "CLOUDWATCH"]
+  data_sources             = ["PROMETHEUS"]
   grafana_version          = "12.4"
 
   depends_on = [aws_iam_role_policy.grafana_data_sources]
