@@ -344,3 +344,122 @@ run "frontend_with_external_dns" {
     error_message = "External DNS must not provision Route53 alias records."
   }
 }
+
+# --- AIAE Onboarding Platform (second application in the shared root) --------
+
+run "onboarding_platform_disabled_by_default" {
+  command = plan
+
+  variables {
+    environment                = "dev"
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = false
+  }
+
+  assert {
+    condition     = length(aws_ecr_repository.onboarding) == 0
+    error_message = "An environment that has not opted in must create no ECR repository."
+  }
+
+  assert {
+    condition     = length(aws_db_instance.onboarding_postgres) == 0
+    error_message = "An environment that has not opted in must create no database."
+  }
+
+  assert {
+    condition     = length(aws_secretsmanager_secret.onboarding) == 0
+    error_message = "An environment that has not opted in must create no secret."
+  }
+
+  assert {
+    condition     = length(aws_s3_bucket.onboarding_frontend) == 0
+    error_message = "An environment that has not opted in must create no frontend bucket."
+  }
+
+  assert {
+    condition     = length(aws_iam_role.onboarding_application) == 0
+    error_message = "An environment that has not opted in must create no workload role."
+  }
+}
+
+run "onboarding_platform_dev" {
+  command = plan
+
+  variables {
+    environment                = "dev"
+    create_ecr_repository      = true
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = false
+
+    enable_onboarding_platform = true
+    onboarding_github_oidc_subjects = [
+      "repo:AiDigital-com@184130113/AIAE-onboarding-platform@1303870401:environment:dev",
+    ]
+  }
+
+  # The chart's serviceAccount names must match these subjects exactly or the
+  # pod gets no credentials and object storage silently degrades.
+  assert {
+    condition = local.onboarding_service_account_subjects == [
+      "system:serviceaccount:aiae-dev:aiae-onboarding-api",
+      "system:serviceaccount:aiae-dev:aiae-onboarding-api-liquibase",
+    ]
+    error_message = "The workload role must trust both the API and the Liquibase service accounts."
+  }
+
+  assert {
+    condition     = aws_secretsmanager_secret.onboarding[0].name == "AIAE-DEV/aiae-onboarding"
+    error_message = "The DEV secret name must match APP_CONFIG_SECRET_NAME and the chart's secretsManager.awsSecretName."
+  }
+
+  assert {
+    condition     = aws_ecr_repository.onboarding[0].image_tag_mutability == "IMMUTABLE"
+    error_message = "Release tags must be immutable so a rollback repins an existing artifact instead of a rebuilt one."
+  }
+
+  # The one thing that must never regress: this application does not inherit
+  # Operational Hub's public-database exception.
+  assert {
+    condition     = aws_db_instance.onboarding_postgres[0].publicly_accessible == false
+    error_message = "The Onboarding Platform database must not be publicly accessible."
+  }
+
+  assert {
+    condition     = aws_iam_role.onboarding_application[0].name == "aiae-onboarding-dev-application"
+    error_message = "The workload role name must match the iamRoleArn used in the AIAE-helm dev values."
+  }
+
+  # Operational Hub resources must be untouched by this application's variables.
+  assert {
+    condition     = aws_ecr_repository.backend[0].name == "aidigital.aiae-projects/operational-hub-application"
+    error_message = "Adding the second application must not alter the first application's ECR repository."
+  }
+}
+
+run "onboarding_platform_prod_rejects_public_database" {
+  command = plan
+
+  variables {
+    environment                = "prod"
+    aws_account_id             = "125093118532"
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = true
+
+    enable_onboarding_platform = true
+    onboarding_github_oidc_subjects = [
+      "repo:AiDigital-com@184130113/AIAE-onboarding-platform@1303870401:environment:prod",
+    ]
+    onboarding_database_publicly_accessible = true
+    onboarding_database_public_access_cidrs = ["203.0.113.10/32"]
+  }
+
+  expect_failures = [
+    aws_db_instance.onboarding_postgres,
+  ]
+}

@@ -51,3 +51,37 @@ database_multi_az            = false
 database_publicly_accessible = true
 database_public_access_cidrs = ["0.0.0.0/0"]
 enable_deletion_protection   = false
+
+# --- AIAE Onboarding Platform (application-scoped) --------------------------
+enable_onboarding_platform = true
+
+# Numeric organization and repository IDs come from the GitHub API; the
+# organization's OIDC subject template embeds them, so a plain
+# repo:<org>/<repo>:environment:dev subject would never match.
+onboarding_github_oidc_subjects = [
+  "repo:AiDigital-com@184130113/AIAE-onboarding-platform@1303870401:environment:dev",
+]
+
+onboarding_database_instance_class    = "db.t4g.small"
+onboarding_database_allocated_storage = 20
+onboarding_database_multi_az          = false
+
+# Public by explicit request, so the database can be opened directly from the
+# IDE. Scoped to the developer's current address rather than the 0.0.0.0/0 that
+# the Operational Hub DEV database uses: the credential is an AWS-generated
+# master password, and a world-reachable Postgres port is worth avoiding when a
+# single CIDR does the same job.
+#
+# When your public IP changes, `curl -s https://checkip.amazonaws.com` gives the
+# new one; update the CIDR below and re-apply. Widen to ["0.0.0.0/0"] only as a
+# deliberate, temporary decision.
+#
+# The PROD precondition in rds-aiae-onboarding.tf rejects public access outright,
+# so this cannot leak into production by copying the file.
+onboarding_database_publicly_accessible = true
+onboarding_database_public_access_cidrs = ["188.255.211.8/32"]
+
+# Empty on the first apply: the ALB does not exist until Argo CD has created
+# the Ingress. Set to the Ingress address and re-apply to attach the /api/*
+# and /actuator/* CloudFront behaviours.
+onboarding_frontend_api_origin_domain_name = ""
