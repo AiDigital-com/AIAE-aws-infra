@@ -53,7 +53,7 @@ resource "aws_db_instance" "onboarding_postgres" {
   identifier = "${local.onboarding_name}-postgres"
 
   engine         = "postgres"
-  engine_version = "16"
+  engine_version = var.onboarding_database_engine_version
   instance_class = var.onboarding_database_instance_class
 
   allocated_storage     = var.onboarding_database_allocated_storage

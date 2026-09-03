@@ -463,3 +463,71 @@ run "onboarding_platform_prod_rejects_public_database" {
     aws_db_instance.onboarding_postgres,
   ]
 }
+
+run "onboarding_platform_prod" {
+  command = plan
+
+  variables {
+    environment                = "prod"
+    aws_account_id             = "125093118532"
+    create_ecr_repository      = true
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = true
+
+    enable_onboarding_platform = true
+    onboarding_github_oidc_subjects = [
+      "repo:AiDigital-com@184130113/AIAE-onboarding-platform@1303870401:environment:prod",
+    ]
+    onboarding_database_engine_version      = "16.15"
+    onboarding_database_multi_az            = true
+    onboarding_database_publicly_accessible = false
+    onboarding_frontend_domain_name         = "aiae-onboarding.aidigital.tech"
+  }
+
+  assert {
+    condition     = aws_secretsmanager_secret.onboarding[0].name == "AIAE-PRD/aiae-onboarding"
+    error_message = "The PROD secret name must match APP_CONFIG_SECRET_NAME in the prod GitHub environment."
+  }
+
+  # Must be >= the 16.14 source database or pg_restore refuses the dump.
+  assert {
+    condition     = aws_db_instance.onboarding_postgres[0].engine_version == "16.15"
+    error_message = "The PROD database minor must be pinned, not resolved by AWS to its current default."
+  }
+
+  assert {
+    condition     = aws_db_instance.onboarding_postgres[0].multi_az == true
+    error_message = "The PROD database must be Multi-AZ."
+  }
+
+  assert {
+    condition     = aws_db_instance.onboarding_postgres[0].publicly_accessible == false
+    error_message = "The PROD database must never be publicly accessible."
+  }
+
+  assert {
+    condition     = aws_db_instance.onboarding_postgres[0].deletion_protection == true
+    error_message = "The PROD database must have deletion protection enabled."
+  }
+
+  assert {
+    condition     = aws_db_instance.onboarding_postgres[0].backup_retention_period == 14
+    error_message = "The PROD database must retain backups; a migration target with no backups has no recovery path."
+  }
+
+  # DNS is external, so the certificate is requested here and validated by hand.
+  assert {
+    condition     = aws_acm_certificate.onboarding_frontend[0].domain_name == "aiae-onboarding.aidigital.tech"
+    error_message = "The PROD certificate must cover the production hostname."
+  }
+
+  # Identity, not configuration: the point is that adding a second application
+  # does not re-address or rename the first application's database. Its Multi-AZ
+  # setting comes from env/prod.tfvars, which tests do not load.
+  assert {
+    condition     = aws_db_instance.postgres.identifier == "aiae-operational-hub-prod-postgres"
+    error_message = "Adding the second application must not re-address the first application's PROD database."
+  }
+}

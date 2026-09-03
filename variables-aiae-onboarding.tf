@@ -19,6 +19,18 @@ variable "onboarding_github_oidc_subjects" {
   default     = []
 }
 
+variable "onboarding_database_engine_version" {
+  type        = string
+  description = <<-EOT
+    Exact PostgreSQL minor version. Pinned deliberately rather than left as "16":
+    AWS resolves a bare major to whatever minor it currently defaults to, which
+    produced 16.13 in DEV. A dump taken from a NEWER server cannot be restored
+    into an older one, and the source database (Replit/Neon) is 16.14, so the
+    target must be 16.14 or later.
+  EOT
+  default     = "16.15"
+}
+
 variable "onboarding_database_instance_class" {
   type        = string
   description = "Instance class for the Onboarding Platform database."

@@ -83,3 +83,41 @@ database_multi_az            = true
 database_publicly_accessible = false
 database_public_access_cidrs = []
 enable_deletion_protection   = true
+
+# --- AIAE Onboarding Platform (application-scoped) --------------------------
+enable_onboarding_platform = true
+
+# Same numeric organization and repository IDs as DEV; only the environment
+# claim differs. The organization's custom OIDC subject embeds both IDs, so a
+# plain repo:<org>/<repo>:environment:prod subject would never match.
+onboarding_github_oidc_subjects = [
+  "repo:AiDigital-com@184130113/AIAE-onboarding-platform@1303870401:environment:prod",
+]
+
+# Pinned minor, not a bare "16". AWS resolves a bare major to its current
+# default, which gave 16.13 in DEV — OLDER than the 16.14 source database, and
+# pg_restore refuses to load a dump from a newer server.
+onboarding_database_engine_version = "16.15"
+
+# Sized like the Operational Hub production database. Storage is larger than
+# the 54 MB being migrated because gp3 IOPS scale with allocated size, and
+# autoscaling doubles the ceiling.
+onboarding_database_instance_class    = "db.t4g.medium"
+onboarding_database_allocated_storage = 100
+onboarding_database_multi_az          = true
+
+# Never public in production. rds-aiae-onboarding.tf also carries a precondition
+# that fails the plan outright if this is ever set to true while environment is
+# prod, so the DEV exception cannot be copied here by accident.
+onboarding_database_publicly_accessible = false
+onboarding_database_public_access_cidrs = []
+
+# Requests an ACM certificate for this hostname. DNS lives in GoDaddy, so the
+# validation CNAME is a manual step; the certificate stays PENDING_VALIDATION
+# until it is added, and CloudFront keeps serving on its generated domain
+# meanwhile.
+onboarding_frontend_domain_name = "aiae-onboarding.aidigital.tech"
+
+# Empty until Argo CD has created the Ingress and the ALB exists. Fill in and
+# re-apply, exactly as was done for DEV.
+onboarding_frontend_api_origin_domain_name = ""
