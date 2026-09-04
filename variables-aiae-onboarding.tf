@@ -90,6 +90,47 @@ variable "onboarding_frontend_api_origin_domain_name" {
 
 variable "onboarding_frontend_domain_name" {
   type        = string
-  description = "Custom hostname for the frontend. DEV intentionally uses the generated CloudFront domain and leaves this empty."
+  description = <<-EOT
+    Custom hostname to ATTACH to CloudFront as an alias, with its ACM
+    certificate as the viewer certificate. Leave empty until that certificate
+    is ISSUED: CloudFront rejects a PENDING_VALIDATION certificate outright
+    with InvalidViewerCertificate, which fails the whole apply.
+
+    Set onboarding_frontend_certificate_request_domain_name first to request
+    the certificate, add the validation CNAME by hand, wait for ISSUED, then
+    set this and apply again. DEV leaves both empty and uses the generated
+    CloudFront domain.
+  EOT
+  default     = ""
+}
+
+variable "onboarding_frontend_certificate_alternative_names" {
+  type        = list(string)
+  description = <<-EOT
+    Additional hostnames covered by the same certificate, and attached to
+    CloudFront as aliases alongside onboarding_frontend_domain_name.
+
+    Used for a verification subdomain: the production hostname can stay pointed
+    at the old deployment while a second name serves the new one, so the whole
+    authenticated surface is testable before any traffic moves. An alias only
+    tells CloudFront which Host headers to accept — it attracts no traffic on
+    its own, because that follows DNS.
+
+    ACM cannot add names to an existing certificate, so changing this list
+    replaces the certificate. That is free while it is still
+    PENDING_VALIDATION and attached to nothing.
+  EOT
+  default     = []
+}
+
+variable "onboarding_frontend_certificate_request_domain_name" {
+  type        = string
+  description = <<-EOT
+    Hostname to REQUEST an ACM certificate for without attaching it to
+    CloudFront yet. Splitting request from attachment is what makes the
+    two-step external-DNS cutover expressible in configuration: the
+    certificate can sit in PENDING_VALIDATION while CloudFront keeps serving
+    on its generated domain.
+  EOT
   default     = ""
 }

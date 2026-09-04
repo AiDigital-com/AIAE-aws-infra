@@ -531,3 +531,49 @@ run "onboarding_platform_prod" {
     error_message = "Adding the second application must not re-address the first application's PROD database."
   }
 }
+
+# Regression guard. Setting the attach variable while the certificate is still
+# PENDING_VALIDATION failed the real PROD apply with InvalidViewerCertificate,
+# because CloudFront refuses an unissued certificate. Requesting a certificate
+# must therefore be expressible WITHOUT attaching it.
+run "onboarding_certificate_requested_but_not_attached" {
+  command = plan
+
+  variables {
+    environment                = "prod"
+    aws_account_id             = "125093118532"
+    create_ecr_repository      = true
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = true
+
+    enable_onboarding_platform = true
+    onboarding_github_oidc_subjects = [
+      "repo:AiDigital-com@184130113/AIAE-onboarding-platform@1303870401:environment:prod",
+    ]
+    onboarding_frontend_certificate_request_domain_name = "aiae-onboarding.aidigital.tech"
+    onboarding_frontend_domain_name                     = ""
+  }
+
+  assert {
+    condition     = length(aws_acm_certificate.onboarding_frontend) == 1
+    error_message = "The certificate must still be requested when only the request variable is set."
+  }
+
+  assert {
+    condition     = aws_acm_certificate.onboarding_frontend[0].domain_name == "aiae-onboarding.aidigital.tech"
+    error_message = "The requested certificate must cover the production hostname."
+  }
+
+  # The two assertions that encode the actual failure.
+  assert {
+    condition     = length(aws_cloudfront_distribution.onboarding_frontend[0].aliases) == 0
+    error_message = "CloudFront must carry no alias until the certificate is issued and explicitly attached."
+  }
+
+  assert {
+    condition     = aws_cloudfront_distribution.onboarding_frontend[0].viewer_certificate[0].cloudfront_default_certificate == true
+    error_message = "CloudFront must use its own default certificate while the ACM certificate is unissued."
+  }
+}

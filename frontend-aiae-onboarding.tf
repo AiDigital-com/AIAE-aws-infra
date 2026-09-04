@@ -219,7 +219,12 @@ resource "aws_cloudfront_distribution" "onboarding_frontend" {
   comment             = "${local.onboarding_name} frontend"
   default_root_object = "index.html"
   price_class         = "PriceClass_100"
-  aliases             = var.onboarding_frontend_domain_name == "" ? [] : [var.onboarding_frontend_domain_name]
+  # Every name the certificate covers is accepted here. Attaching an alias does
+  # not route anything to this distribution; DNS decides that.
+  aliases = var.onboarding_frontend_domain_name == "" ? [] : concat(
+    [var.onboarding_frontend_domain_name],
+    var.onboarding_frontend_certificate_alternative_names,
+  )
 
   origin {
     domain_name              = aws_s3_bucket.onboarding_frontend[0].bucket_regional_domain_name
@@ -304,10 +309,11 @@ resource "aws_cloudfront_distribution" "onboarding_frontend" {
 # onboarding_frontend_domain_name empty and uses the generated CloudFront
 # domain, so no certificate and no external DNS work is required.
 resource "aws_acm_certificate" "onboarding_frontend" {
-  count = var.enable_onboarding_platform && var.onboarding_frontend_domain_name != "" ? 1 : 0
+  count = var.enable_onboarding_platform && local.onboarding_frontend_certificate_domain_name != "" ? 1 : 0
 
-  domain_name       = var.onboarding_frontend_domain_name
-  validation_method = "DNS"
+  domain_name               = local.onboarding_frontend_certificate_domain_name
+  subject_alternative_names = var.onboarding_frontend_certificate_alternative_names
+  validation_method         = "DNS"
 
   lifecycle {
     create_before_destroy = true

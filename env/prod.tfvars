@@ -112,12 +112,26 @@ onboarding_database_multi_az          = true
 onboarding_database_publicly_accessible = false
 onboarding_database_public_access_cidrs = []
 
-# Requests an ACM certificate for this hostname. DNS lives in GoDaddy, so the
-# validation CNAME is a manual step; the certificate stays PENDING_VALIDATION
-# until it is added, and CloudFront keeps serving on its generated domain
-# meanwhile.
-onboarding_frontend_domain_name = "aiae-onboarding.aidigital.tech"
+# Two-step cutover, because DNS lives in GoDaddy.
+#
+# Step 1 (now): request the certificate only. It stays PENDING_VALIDATION until
+# the validation CNAME is added by hand, and CloudFront serves on its generated
+# *.cloudfront.net domain meanwhile. Attaching an unissued certificate fails the
+# apply with InvalidViewerCertificate, which is exactly what happened when both
+# were set at once.
+onboarding_frontend_certificate_request_domain_name = "aiae-onboarding.aidigital.tech"
+
+# Step 2 (after the certificate reaches ISSUED): set this to the same hostname
+# and apply again. That attaches the alias and the certificate to CloudFront.
+# Only then does the GoDaddy traffic record get repointed.
+onboarding_frontend_domain_name = ""
+
+# Verification subdomain. Covered by the same certificate and attached as a
+# CloudFront alias, so the authenticated surface can be exercised on a real
+# aidigital.tech hostname — which the production Clerk instance requires —
+# while aiae-onboarding.aidigital.tech still points at the old deployment.
+onboarding_frontend_certificate_alternative_names = ["aiae-onboarding-new.aidigital.tech"]
 
 # Empty until Argo CD has created the Ingress and the ALB exists. Fill in and
 # re-apply, exactly as was done for DEV.
-onboarding_frontend_api_origin_domain_name = ""
+onboarding_frontend_api_origin_domain_name = "k8s-aiaeprod-aiaeonbo-99333fe377-1861569064.us-east-1.elb.amazonaws.com"

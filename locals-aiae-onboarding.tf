@@ -32,6 +32,14 @@ locals {
     "system:serviceaccount:${local.app_namespace}:aiae-onboarding-api-liquibase",
   ]
 
+  # Mirrors local.frontend_certificate_domain_name: a certificate may be
+  # requested for a hostname that is not yet attached to CloudFront.
+  onboarding_frontend_certificate_domain_name = (
+    var.onboarding_frontend_domain_name != ""
+    ? var.onboarding_frontend_domain_name
+    : var.onboarding_frontend_certificate_request_domain_name
+  )
+
   onboarding_frontend_bucket_name  = "${local.onboarding_name}-frontend-${var.aws_account_id}"
   onboarding_materials_bucket_name = "${local.onboarding_name}-materials-${var.aws_account_id}"
 }
