@@ -193,6 +193,28 @@ data "aws_iam_policy_document" "onboarding_application" {
     resources = [aws_secretsmanager_secret.onboarding[0].arn]
   }
 
+  # AWS owns the database password: it rotates it into the RDS-managed master
+  # user secret every seven days, and that schedule is not ours to stop. So the
+  # application reads the credentials from that secret directly through the AWS
+  # Advanced JDBC Wrapper rather than from a copy in the secret above. A copy is
+  # what broke twice: nothing updated it, and a pod holds its environment for
+  # its whole life, so the stale value kept failing until someone intervened.
+  # Reading the owner's copy at connection time removes the second source.
+  #
+  # Both the application and the Liquibase PreSync Job need this: the Job gets
+  # the same credentials projected as files by the Secrets Store CSI driver, and
+  # both service accounts assume this role (see
+  # local.onboarding_service_account_subjects).
+  statement {
+    sid    = "ReadDatabaseCredentialsSecret"
+    effect = "Allow"
+    actions = [
+      "secretsmanager:DescribeSecret",
+      "secretsmanager:GetSecretValue",
+    ]
+    resources = [aws_db_instance.onboarding_postgres[0].master_user_secret[0].secret_arn]
+  }
+
   # The application presigns S3 URLs so the browser uploads and downloads
   # material files directly. Presigning is a local signing operation, but it
   # signs with THESE credentials, so the role must actually hold the object

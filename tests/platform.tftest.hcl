@@ -416,6 +416,16 @@ run "onboarding_platform_dev" {
     error_message = "The DEV secret name must match APP_CONFIG_SECRET_NAME and the chart's secretsManager.awsSecretName."
   }
 
+  # The application secret must not carry database credentials. AWS rotates the
+  # password every seven days into its own managed secret, and a copy here is
+  # what broke this application and Operational Hub: nothing updated the copy,
+  # and a pod holds its environment variables for its whole life. The chart
+  # reads the credentials from the RDS-managed secret instead.
+  assert {
+    condition     = !contains(output.onboarding_required_secret_keys, "POSTGRES_PASSWORD") && !contains(output.onboarding_required_secret_keys, "POSTGRES_USER")
+    error_message = "The application secret must not contain database credentials; they are owned by the RDS-managed secret."
+  }
+
   assert {
     condition     = aws_ecr_repository.onboarding[0].image_tag_mutability == "IMMUTABLE"
     error_message = "Release tags must be immutable so a rollback repins an existing artifact instead of a rebuilt one."
