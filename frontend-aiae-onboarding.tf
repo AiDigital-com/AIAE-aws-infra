@@ -106,10 +106,14 @@ resource "aws_s3_bucket_cors_configuration" "onboarding_materials" {
 
   cors_rule {
     allowed_methods = ["GET", "PUT", "HEAD"]
-    allowed_origins = compact([
-      "https://${aws_cloudfront_distribution.onboarding_frontend[0].domain_name}",
-      var.onboarding_frontend_domain_name == "" ? "" : "https://${var.onboarding_frontend_domain_name}",
-    ])
+    # Every hostname the frontend is served on, because the browser PUTs the
+    # file to S3 directly and S3 checks Origin itself. A missing origin here
+    # fails the upload in the browser with an opaque CORS error while the
+    # backend reports success at handing out the URL.
+    allowed_origins = concat(
+      ["https://${aws_cloudfront_distribution.onboarding_frontend[0].domain_name}"],
+      [for host in var.onboarding_frontend_attached_aliases : "https://${host}"],
+    )
     allowed_headers = ["*"]
     expose_headers  = ["ETag"]
     max_age_seconds = 3000
@@ -221,10 +225,10 @@ resource "aws_cloudfront_distribution" "onboarding_frontend" {
   price_class         = "PriceClass_100"
   # Every name the certificate covers is accepted here. Attaching an alias does
   # not route anything to this distribution; DNS decides that.
-  aliases = var.onboarding_frontend_domain_name == "" ? [] : concat(
-    [var.onboarding_frontend_domain_name],
-    var.onboarding_frontend_certificate_alternative_names,
-  )
+  # Exactly the names chosen for attachment — not everything the certificate
+  # covers. The certificate can legitimately cover a hostname that still points
+  # at the previous deployment.
+  aliases = var.onboarding_frontend_attached_aliases
 
   origin {
     domain_name              = aws_s3_bucket.onboarding_frontend[0].bucket_regional_domain_name
@@ -292,10 +296,10 @@ resource "aws_cloudfront_distribution" "onboarding_frontend" {
   }
 
   viewer_certificate {
-    cloudfront_default_certificate = var.onboarding_frontend_domain_name == "" ? true : null
-    acm_certificate_arn            = var.onboarding_frontend_domain_name == "" ? null : aws_acm_certificate.onboarding_frontend[0].arn
-    ssl_support_method             = var.onboarding_frontend_domain_name == "" ? null : "sni-only"
-    minimum_protocol_version       = var.onboarding_frontend_domain_name == "" ? "TLSv1" : "TLSv1.2_2021"
+    cloudfront_default_certificate = length(var.onboarding_frontend_attached_aliases) == 0 ? true : null
+    acm_certificate_arn            = length(var.onboarding_frontend_attached_aliases) == 0 ? null : aws_acm_certificate.onboarding_frontend[0].arn
+    ssl_support_method             = length(var.onboarding_frontend_attached_aliases) == 0 ? null : "sni-only"
+    minimum_protocol_version       = length(var.onboarding_frontend_attached_aliases) == 0 ? "TLSv1" : "TLSv1.2_2021"
   }
 
   depends_on = [
@@ -306,12 +310,12 @@ resource "aws_cloudfront_distribution" "onboarding_frontend" {
 }
 
 # Only created when a custom hostname is requested. DEV leaves
-# onboarding_frontend_domain_name empty and uses the generated CloudFront
+# onboarding_frontend_certificate_request_domain_name empty and uses the generated CloudFront
 # domain, so no certificate and no external DNS work is required.
 resource "aws_acm_certificate" "onboarding_frontend" {
-  count = var.enable_onboarding_platform && local.onboarding_frontend_certificate_domain_name != "" ? 1 : 0
+  count = var.enable_onboarding_platform && var.onboarding_frontend_certificate_request_domain_name != "" ? 1 : 0
 
-  domain_name               = local.onboarding_frontend_certificate_domain_name
+  domain_name               = var.onboarding_frontend_certificate_request_domain_name
   subject_alternative_names = var.onboarding_frontend_certificate_alternative_names
   validation_method         = "DNS"
 

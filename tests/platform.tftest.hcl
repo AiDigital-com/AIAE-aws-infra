@@ -490,10 +490,10 @@ run "onboarding_platform_prod" {
     onboarding_github_oidc_subjects = [
       "repo:AiDigital-com@184130113/AIAE-onboarding-platform@1303870401:environment:prod",
     ]
-    onboarding_database_engine_version      = "16.15"
-    onboarding_database_multi_az            = true
-    onboarding_database_publicly_accessible = false
-    onboarding_frontend_domain_name         = "aiae-onboarding.aidigital.tech"
+    onboarding_database_engine_version                  = "16.15"
+    onboarding_database_multi_az                        = true
+    onboarding_database_publicly_accessible             = false
+    onboarding_frontend_certificate_request_domain_name = "aiae-onboarding.aidigital.tech"
   }
 
   assert {
@@ -563,7 +563,6 @@ run "onboarding_certificate_requested_but_not_attached" {
       "repo:AiDigital-com@184130113/AIAE-onboarding-platform@1303870401:environment:prod",
     ]
     onboarding_frontend_certificate_request_domain_name = "aiae-onboarding.aidigital.tech"
-    onboarding_frontend_domain_name                     = ""
   }
 
   assert {
@@ -585,5 +584,59 @@ run "onboarding_certificate_requested_but_not_attached" {
   assert {
     condition     = aws_cloudfront_distribution.onboarding_frontend[0].viewer_certificate[0].cloudfront_default_certificate == true
     error_message = "CloudFront must use its own default certificate while the ACM certificate is unissued."
+  }
+}
+
+# The verification phase. The certificate covers the production hostname, yet
+# only the verification subdomain is attached, because DNS still sends that
+# hostname to the previous deployment. Coupling the two — attaching everything
+# the certificate covers — would silently alter the production hostname's
+# CloudFront configuration during a step whose whole promise is not to touch it.
+run "onboarding_attaches_only_the_verification_subdomain" {
+  command = plan
+
+  variables {
+    environment                = "prod"
+    aws_account_id             = "125093118532"
+    create_ecr_repository      = true
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = true
+
+    enable_onboarding_platform = true
+    onboarding_github_oidc_subjects = [
+      "repo:AiDigital-com@184130113/AIAE-onboarding-platform@1303870401:environment:prod",
+    ]
+    onboarding_frontend_certificate_request_domain_name = "aiae-onboarding.aidigital.tech"
+    onboarding_frontend_certificate_alternative_names   = ["aiae-onboarding-new.aidigital.tech"]
+    onboarding_frontend_attached_aliases                = ["aiae-onboarding-new.aidigital.tech"]
+  }
+
+  assert {
+    condition     = aws_acm_certificate.onboarding_frontend[0].domain_name == "aiae-onboarding.aidigital.tech"
+    error_message = "The certificate must still be issued for the production hostname."
+  }
+
+  assert {
+    condition     = contains(aws_acm_certificate.onboarding_frontend[0].subject_alternative_names, "aiae-onboarding-new.aidigital.tech")
+    error_message = "The certificate must also cover the verification subdomain."
+  }
+
+  # The assertion that encodes the promise.
+  assert {
+    condition     = aws_cloudfront_distribution.onboarding_frontend[0].aliases == toset(["aiae-onboarding-new.aidigital.tech"])
+    error_message = "Only the verification subdomain may be attached; the production hostname must stay unattached until the cutover."
+  }
+
+  # That the ACM certificate rather than the CloudFront default one ends up
+  # attached is deliberately not asserted here: the certificate ARN is only
+  # known after apply, so a plan-time condition on it cannot be evaluated.
+  # CloudFront enforces it anyway — a distribution carrying an alias with the
+  # default certificate is rejected outright — and it is checked against the
+  # live distribution after the apply.
+  assert {
+    condition     = length(aws_acm_certificate.onboarding_frontend) == 1
+    error_message = "An attached alias requires a certificate to exist for it."
   }
 }

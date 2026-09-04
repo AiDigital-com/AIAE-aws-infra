@@ -88,27 +88,12 @@ variable "onboarding_frontend_api_origin_domain_name" {
   default     = ""
 }
 
-variable "onboarding_frontend_domain_name" {
-  type        = string
-  description = <<-EOT
-    Custom hostname to ATTACH to CloudFront as an alias, with its ACM
-    certificate as the viewer certificate. Leave empty until that certificate
-    is ISSUED: CloudFront rejects a PENDING_VALIDATION certificate outright
-    with InvalidViewerCertificate, which fails the whole apply.
-
-    Set onboarding_frontend_certificate_request_domain_name first to request
-    the certificate, add the validation CNAME by hand, wait for ISSUED, then
-    set this and apply again. DEV leaves both empty and uses the generated
-    CloudFront domain.
-  EOT
-  default     = ""
-}
-
 variable "onboarding_frontend_certificate_alternative_names" {
   type        = list(string)
   description = <<-EOT
     Additional hostnames covered by the same certificate, and attached to
-    CloudFront as aliases alongside onboarding_frontend_domain_name.
+    covered by the same certificate, and eligible for attachment through
+    onboarding_frontend_attached_aliases.
 
     Used for a verification subdomain: the production hostname can stay pointed
     at the old deployment while a second name serves the new one, so the whole
@@ -119,6 +104,27 @@ variable "onboarding_frontend_certificate_alternative_names" {
     ACM cannot add names to an existing certificate, so changing this list
     replaces the certificate. That is free while it is still
     PENDING_VALIDATION and attached to nothing.
+  EOT
+  default     = []
+}
+
+variable "onboarding_frontend_attached_aliases" {
+  type        = list(string)
+  description = <<-EOT
+    Hostnames actually ATTACHED to CloudFront as aliases. Deliberately separate
+    from the certificate variables, because being covered by the certificate and
+    being served are different decisions taken at different times.
+
+    The verification phase attaches only the verification subdomain, so the
+    production hostname's CloudFront configuration is not touched at all while
+    it still resolves to the previous deployment. On cutover day the production
+    hostname is added here first, and only then is its DNS record repointed.
+
+    Every name listed here must be covered by the certificate, or CloudFront
+    rejects the distribution. An alias attracts no traffic by itself: it only
+    tells CloudFront which Host headers to accept, and DNS decides what arrives.
+    Leave empty to serve on the generated CloudFront domain alone, which is what
+    DEV does.
   EOT
   default     = []
 }
