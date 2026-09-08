@@ -315,13 +315,33 @@ resource "helm_release" "postgres_exporter" {
     config = {
       datasource = {
         host = aws_db_instance.postgres.address
+        # Deliberately NOT the master credentials. Those are owned and rotated
+        # by AWS every seven days, and this exporter cannot follow a rotation:
+        # it assembles its connection string once, at startup, from these
+        # environment variables, and postgres_exporter has no refetch-and-retry
+        # path like the application's JDBC wrapper. Pointed at the master
+        # password it would report pg_up = 0 after every rotation and raise
+        # Database unavailable against a healthy database.
+        #
+        # It had in fact been failing authentication continuously since
+        # 31 August — 7000+ occurrences — while still reporting pg_up = 1,
+        # because only some of its collectors failed. The visible damage was
+        # that pg_stat_database_* never reached Prometheus, so the PostgreSQL
+        # deadlock rule silently evaluated an empty series. The likeliest cause
+        # is the RDS-generated password: it contains characters that break the
+        # connection string the exporter builds. These credentials are therefore
+        # alphanumeric by construction.
+        #
+        # The role behind them can only read statistics: it holds pg_monitor and
+        # nothing else, so it is refused on application tables. Verified against
+        # the live database before this switch.
         userSecret = {
           name = "operational-hub-api-secret"
-          key  = "POSTGRES_USER"
+          key  = "EXPORTER_USER"
         }
         passwordSecret = {
           name = "operational-hub-api-secret"
-          key  = "POSTGRES_PASSWORD"
+          key  = "EXPORTER_PASSWORD"
         }
         port     = tostring(aws_db_instance.postgres.port)
         database = var.database_name
