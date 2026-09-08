@@ -152,6 +152,48 @@ resource "helm_release" "prometheus_collector" {
       kubernetes-pods-slow              = { enabled = false }
     }
     extraScrapeConfigs = yamlencode([
+      # One job per application. The Onboarding Platform shares this cluster and
+      # this collector, so its metrics have to be scraped here or its Grafana
+      # alert rules would evaluate an empty series and never fire — which is
+      # worse than having no rule at all, because it looks covered.
+      {
+        job_name     = "aiae-onboarding-api"
+        metrics_path = "/actuator/prometheus"
+        kubernetes_sd_configs = [{
+          role = "endpointslice"
+          namespaces = {
+            names = [local.app_namespace]
+          }
+        }]
+        relabel_configs = [
+          {
+            source_labels = ["__meta_kubernetes_service_name"]
+            regex         = "aiae-onboarding-api"
+            action        = "keep"
+          },
+          {
+            source_labels = ["__meta_kubernetes_endpointslice_port_name"]
+            regex         = "http"
+            action        = "keep"
+          },
+          {
+            source_labels = ["__meta_kubernetes_namespace"]
+            target_label  = "namespace"
+          },
+          {
+            source_labels = ["__meta_kubernetes_pod_name"]
+            target_label  = "pod"
+          },
+          {
+            target_label = "service"
+            replacement  = "aiae-onboarding-api"
+          },
+          {
+            target_label = "environment"
+            replacement  = var.environment
+          },
+        ]
+      },
       {
         job_name     = "operational-hub-api"
         metrics_path = "/actuator/prometheus"
