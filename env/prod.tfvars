@@ -121,13 +121,19 @@ onboarding_database_public_access_cidrs = []
 # were set at once.
 onboarding_frontend_certificate_request_domain_name = "aiae-onboarding.aidigital.tech"
 
-# Step 2 (after the certificate reaches ISSUED): list the hostnames to attach.
-# Only the verification subdomain is attached for now. The production hostname
-# is covered by the certificate but deliberately NOT attached: it still resolves
-# to the previous deployment, and its CloudFront configuration must not change
-# until the cutover. On cutover day it is added here first, and only afterwards
-# is its DNS record repointed.
-onboarding_frontend_attached_aliases = ["aiae-onboarding-new.aidigital.tech"]
+# Cutover. Both hostnames are attached, so CloudFront accepts either Host.
+# Attaching does not move traffic — DNS does — so the production hostname keeps
+# resolving to the previous deployment until its record is repointed, and this
+# apply is invisible to users. It has to come first: repointing DNS while
+# CloudFront still rejects the Host would fail every request.
+#
+# The verification subdomain stays attached afterwards. It costs nothing, is
+# covered by the same certificate, and remains useful for checking a deployment
+# on a real aidigital.tech hostname without touching the production one.
+onboarding_frontend_attached_aliases = [
+  "aiae-onboarding.aidigital.tech",
+  "aiae-onboarding-new.aidigital.tech",
+]
 
 # Verification subdomain. Covered by the same certificate and attached as a
 # CloudFront alias, so the authenticated surface can be exercised on a real
