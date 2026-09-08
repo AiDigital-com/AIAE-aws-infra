@@ -121,19 +121,19 @@ onboarding_database_public_access_cidrs = []
 # were set at once.
 onboarding_frontend_certificate_request_domain_name = "aiae-onboarding.aidigital.tech"
 
-# Cutover. Both hostnames are attached, so CloudFront accepts either Host.
-# Attaching does not move traffic — DNS does — so the production hostname keeps
-# resolving to the previous deployment until its record is repointed, and this
-# apply is invisible to users. It has to come first: repointing DNS while
-# CloudFront still rejects the Host would fail every request.
+# The production hostname only. Attaching moves no traffic — DNS does — so this
+# list is what CloudFront accepts, and every name in it must be covered by the
+# certificate.
 #
-# The verification subdomain stays attached afterwards. It costs nothing, is
-# covered by the same certificate, and remains useful for checking a deployment
-# on a real aidigital.tech hostname without touching the production one.
-onboarding_frontend_attached_aliases = [
-  "aiae-onboarding.aidigital.tech",
-  "aiae-onboarding-new.aidigital.tech",
-]
+# The verification subdomain was retired once the cutover was done: it existed
+# to exercise the whole authenticated surface on a real aidigital.tech hostname
+# while the production one still resolved to the previous deployment. It stays
+# on the certificate, because ACM cannot edit the names on an existing
+# certificate and replacing the live viewer certificate is not worth the risk
+# for an unused name. That also means its DNS validation record must NOT be
+# deleted: managed renewal revalidates every name on the certificate, so losing
+# that record would eventually break renewal for the production hostname too.
+onboarding_frontend_attached_aliases = ["aiae-onboarding.aidigital.tech"]
 
 # Verification subdomain. Covered by the same certificate and attached as a
 # CloudFront alias, so the authenticated surface can be exercised on a real
