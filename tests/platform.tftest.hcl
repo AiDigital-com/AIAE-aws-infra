@@ -640,3 +640,204 @@ run "onboarding_attaches_only_the_verification_subdomain" {
     error_message = "An attached alias requires a certificate to exist for it."
   }
 }
+
+# ─── Pacing ──────────────────────────────────────────────────────────────────
+
+run "paicing_disabled_by_default" {
+  command = plan
+
+  variables {
+    environment                = "dev"
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = false
+  }
+
+  assert {
+    condition     = length(aws_ecr_repository.paicing) == 0
+    error_message = "An environment that has not opted in must create no Pacing ECR repository."
+  }
+
+  assert {
+    condition     = length(aws_db_instance.paicing_postgres) == 0
+    error_message = "An environment that has not opted in must create no Pacing database."
+  }
+
+  assert {
+    condition     = length(aws_secretsmanager_secret.paicing) == 0
+    error_message = "An environment that has not opted in must create no Pacing secret."
+  }
+
+  assert {
+    condition     = length(aws_iam_role.paicing_application) == 0
+    error_message = "An environment that has not opted in must create no Pacing workload role."
+  }
+
+  assert {
+    condition     = length(aws_iam_role.paicing_github_ci) == 0
+    error_message = "An environment that has not opted in must create no Pacing CI role."
+  }
+}
+
+run "paicing_dev" {
+  command = plan
+
+  variables {
+    environment                = "dev"
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = false
+
+    enable_paicing = true
+    paicing_github_oidc_subjects = [
+      "repo:AiDigital-com@184130113/AIAE-paicing@1354553508:environment:dev",
+    ]
+    paicing_database_publicly_accessible = true
+    paicing_database_public_access_cidrs = ["203.0.113.10/32"]
+  }
+
+  assert {
+    condition     = aws_ecr_repository.paicing[0].image_tag_mutability == "IMMUTABLE"
+    error_message = "Pacing release tags must be immutable, so a rebuilt commit can never replace a deployed artifact."
+  }
+
+  assert {
+    condition     = aws_secretsmanager_secret.paicing[0].name == "AIAE-DEV/aiae-paicing"
+    error_message = "DEV must use the AIAE-DEV secret name."
+  }
+
+  # Three containers of one Pod plus the migration Job: two service accounts,
+  # not four. All three containers share the Pod's identity because they share
+  # its ReadWriteOnce volume.
+  # The application Pod and the migration Job hold DIFFERENT identities: only
+  # the Job may read the RDS master credentials. A single shared role would
+  # hand a row-level identity the keys to alter the schema.
+  assert {
+    condition = (
+      length(local.paicing_application_service_account_subjects) == 1 &&
+      length(local.paicing_migrate_service_account_subjects) == 1 &&
+      local.paicing_application_service_account_subjects[0] != local.paicing_migrate_service_account_subjects[0]
+    )
+    error_message = "The application and the migration Job must use separate service accounts."
+  }
+
+  assert {
+    condition     = length(aws_iam_role.paicing_migrate) == 1
+    error_message = "The migration Job needs its own IAM role."
+  }
+
+  # The public subnet group only exists while public access is on; without it
+  # publicly_accessible=true would produce an instance nothing can reach.
+  assert {
+    condition     = length(aws_db_subnet_group.paicing_postgres_public) == 1
+    error_message = "A publicly accessible database needs the public subnet group."
+  }
+
+  assert {
+    condition     = aws_db_instance.paicing_postgres[0].backup_retention_period == 0
+    error_message = "DEV keeps no backups."
+  }
+}
+
+run "paicing_prod_rejects_public_database" {
+  command = plan
+
+  variables {
+    environment                = "prod"
+    aws_account_id             = "125093118532"
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = true
+
+    enable_paicing = true
+    paicing_github_oidc_subjects = [
+      "repo:AiDigital-com@184130113/AIAE-paicing@1354553508:environment:prod",
+    ]
+    paicing_database_publicly_accessible = true
+    paicing_database_public_access_cidrs = ["203.0.113.10/32"]
+  }
+
+  expect_failures = [
+    aws_db_instance.paicing_postgres,
+  ]
+}
+
+run "paicing_rejects_world_open_database" {
+  command = plan
+
+  variables {
+    environment                = "dev"
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = false
+
+    enable_paicing = true
+    paicing_github_oidc_subjects = [
+      "repo:AiDigital-com@184130113/AIAE-paicing@1354553508:environment:dev",
+    ]
+    paicing_database_publicly_accessible = true
+    paicing_database_public_access_cidrs = ["0.0.0.0/0"]
+  }
+
+  expect_failures = [
+    aws_db_instance.paicing_postgres,
+  ]
+}
+
+run "paicing_rejects_empty_oidc_subjects" {
+  command = plan
+
+  variables {
+    environment                = "dev"
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = false
+
+    enable_paicing               = true
+    paicing_github_oidc_subjects = []
+  }
+
+  expect_failures = [
+    aws_iam_role.paicing_github_ci,
+  ]
+}
+
+# The application must not be able to read the RDS master credentials. This is
+# the assertion that keeps the two roles from quietly being merged back.
+run "paicing_application_role_cannot_read_master_secret" {
+  command = plan
+
+  variables {
+    environment                = "dev"
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = false
+
+    enable_paicing = true
+    paicing_github_oidc_subjects = [
+      "repo:AiDigital-com@184130113/AIAE-paicing@1354553508:environment:dev",
+    ]
+  }
+
+  assert {
+    condition = length([
+      for s in data.aws_iam_policy_document.paicing_application[0].statement :
+      s if s.sid == "ReadDatabaseMasterSecret"
+    ]) == 0
+    error_message = "The application role must not grant access to the RDS master secret."
+  }
+
+  assert {
+    condition = length([
+      for s in data.aws_iam_policy_document.paicing_migrate[0].statement :
+      s if s.sid == "ReadDatabaseMasterSecret"
+    ]) == 1
+    error_message = "The migration Job role must grant access to the RDS master secret."
+  }
+}

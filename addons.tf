@@ -150,6 +150,17 @@ resource "helm_release" "cluster_bootstrap" {
         }
       ]
     }
+    # Cluster-scoped StorageClass. Platform-owned on purpose — see
+    # charts/cluster-bootstrap/templates/storage-class.yaml and the
+    # enable_ebs_storage_class variable for why it does not live in the
+    # application chart that needs it.
+    storage = {
+      ebs = {
+        enabled = var.enable_ebs_storage_class
+        name    = "ebs-gp3"
+        type    = "gp3"
+      }
+    }
     argocd = {
       enabled                = var.enable_argocd
       namespace              = "argocd"

@@ -16,3 +16,9 @@ argocd:
   helmRepositoryUrl: ""
   versionsRepositoryUrl: ""
   targetRevision: dev
+
+storage:
+  ebs:
+    enabled: false
+    name: ebs-gp3
+    type: gp3

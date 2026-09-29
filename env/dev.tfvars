@@ -85,3 +85,35 @@ onboarding_database_public_access_cidrs = ["188.255.211.8/32"]
 # the Ingress. Set to the Ingress address and re-apply to attach the /api/*
 # and /actuator/* CloudFront behaviours.
 onboarding_frontend_api_origin_domain_name = "k8s-aiaedev-aiaeonbo-356e22546b-41930847.us-east-1.elb.amazonaws.com"
+
+# --- Pacing (application-scoped) --------------------------------------------
+enable_paicing = true
+
+# Numeric organization and repository IDs come from the GitHub API; the
+# organization's OIDC subject template embeds them, so a plain
+# repo:<org>/<repo>:environment:dev subject would never match.
+paicing_github_oidc_subjects = [
+  "repo:AiDigital-com@184130113/AIAE-paicing@1354553508:environment:dev",
+]
+
+paicing_database_instance_class    = "db.t4g.small"
+paicing_database_allocated_storage = 20
+paicing_database_multi_az          = false
+
+# Public by explicit owner decision (2026-09-18) so the database can be opened
+# from IntelliJ. Scoped to the developer's current address, NOT the 0.0.0.0/0
+# the Operational Hub DEV database uses — a precondition in
+# rds-aiae-paicing.tf rejects that value outright.
+#
+# When your public IP changes, `curl -s https://checkip.amazonaws.com` gives
+# the new one; update the CIDR below and re-apply.
+#
+# A second precondition rejects public access whenever environment == "prod",
+# so this cannot leak into production by copying this block.
+paicing_database_publicly_accessible = true
+paicing_database_public_access_cidrs = ["188.255.211.8/32"]
+
+# Pacing's three containers share one ReadWriteOnce volume at /dashboards, so
+# the cluster needs a StorageClass that actually works. The pre-existing `gp2`
+# names a provisioner Kubernetes removed in 1.27 and can never bind.
+enable_ebs_storage_class = true

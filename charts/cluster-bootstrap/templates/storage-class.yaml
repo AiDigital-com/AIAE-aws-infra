@@ -1,0 +1,30 @@
+{{- if .Values.storage.ebs.enabled }}
+# Cluster-scoped, and therefore platform-owned rather than application-owned:
+# an application whose Argo Application has prune enabled must not be able to
+# delete a StorageClass other workloads may come to depend on.
+#
+# The cluster ships no usable StorageClass. The only one present, `gp2`, names
+# the in-tree provisioner `kubernetes.io/aws-ebs`, which Kubernetes removed in
+# 1.27 — this cluster runs 1.33, so it can never bind a volume. The working
+# driver is the one below, built into EKS Auto Mode (the cluster reports
+# storageConfig.blockStorage.enabled = true and registers
+# ebs.csi.eks.amazonaws.com with manager `eks-auto-mode`). `gp2` is left alone:
+# no PVC references it, and removing it is a platform cleanup decision of its
+# own.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ .Values.storage.ebs.name }}
+provisioner: ebs.csi.eks.amazonaws.com
+# The volume is created in whichever zone the first consuming Pod is scheduled
+# to, instead of being placed before anything knows where the Pod will run.
+volumeBindingMode: WaitForFirstConsumer
+# Retain, not Delete: a deleted PersistentVolumeClaim must not take the data
+# with it. An orphaned volume is visible and costs a few dollars; an
+# accidentally erased one is neither.
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+parameters:
+  type: {{ .Values.storage.ebs.type }}
+  encrypted: "true"
+{{- end }}

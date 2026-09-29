@@ -144,3 +144,23 @@ onboarding_frontend_certificate_alternative_names = ["aiae-onboarding-new.aidigi
 # Empty until Argo CD has created the Ingress and the ALB exists. Fill in and
 # re-apply, exactly as was done for DEV.
 onboarding_frontend_api_origin_domain_name = "k8s-aiaeprod-aiaeonbo-99333fe377-1861569064.us-east-1.elb.amazonaws.com"
+
+# --- Pacing (application-scoped) --------------------------------------------
+# Not yet released to production. Everything below is the inert value; flipping
+# enable_paicing is a separate, reviewed decision with its own plan.
+enable_paicing = false
+
+paicing_github_oidc_subjects = [
+  "repo:AiDigital-com@184130113/AIAE-paicing@1354553508:environment:prod",
+]
+
+paicing_database_instance_class    = "db.t4g.small"
+paicing_database_allocated_storage = 20
+paicing_database_multi_az          = true
+
+# Never true here. rds-aiae-paicing.tf also enforces this with a precondition.
+paicing_database_publicly_accessible = false
+paicing_database_public_access_cidrs = []
+
+# Enabled together with enable_paicing when Pacing is released to production.
+enable_ebs_storage_class = false
