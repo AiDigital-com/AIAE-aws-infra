@@ -117,3 +117,37 @@ paicing_database_public_access_cidrs = ["188.255.211.8/32"]
 # the cluster needs a StorageClass that actually works. The pre-existing `gp2`
 # names a provisioner Kubernetes removed in 1.27 and can never bind.
 enable_ebs_storage_class = true
+
+# --- AIAE Presentation Builder (application-scoped) --------------------------
+enable_presentation_builder = true
+
+# Numeric organization and repository IDs come from the GitHub API; the
+# organization's OIDC subject template embeds them, so a plain
+# repo:<org>/<repo>:environment:dev subject would never match. The repository is
+# PUBLIC, so this list must stay exact — never a wildcard.
+presentation_builder_github_oidc_subjects = [
+  "repo:AiDigital-com@184130113/AIAE-presentation-builder@1349389858:environment:dev",
+]
+
+presentation_builder_database_instance_class    = "db.t4g.small"
+presentation_builder_database_allocated_storage = 20
+presentation_builder_database_multi_az          = false
+
+# Public by explicit owner decision (2026-10-07) so the database can be opened
+# from the IDE, matching what the Onboarding Platform and Pacing already do.
+# Scoped to the developer's current address, NOT the 0.0.0.0/0 the Operational
+# Hub DEV database uses — a precondition in rds-aiae-presentation-builder.tf
+# rejects that value outright.
+#
+# When your public IP changes, `curl -s https://checkip.amazonaws.com` gives
+# the new one; update the CIDR below and re-apply.
+#
+# A second precondition rejects public access whenever environment == "prod",
+# so this cannot leak into production by copying this block.
+presentation_builder_database_publicly_accessible = true
+presentation_builder_database_public_access_cidrs = ["188.255.211.8/32"]
+
+# Empty on the first apply: the ALB does not exist until Argo CD has created
+# the Ingress. Set it to the Ingress address and re-apply to attach the /api/*
+# and /actuator/* CloudFront behaviours.
+presentation_builder_frontend_api_origin_domain_name = ""

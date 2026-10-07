@@ -841,3 +841,282 @@ run "paicing_application_role_cannot_read_master_secret" {
     error_message = "The migration Job role must grant access to the RDS master secret."
   }
 }
+
+run "presentation_builder_disabled_by_default" {
+  command = plan
+
+  variables {
+    environment                = "dev"
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = false
+  }
+
+  assert {
+    condition     = length(aws_ecr_repository.presentation_builder) == 0
+    error_message = "An environment that has not opted in must create no Presentation Builder ECR repository."
+  }
+
+  assert {
+    condition     = length(aws_db_instance.presentation_builder_postgres) == 0
+    error_message = "An environment that has not opted in must create no Presentation Builder database."
+  }
+
+  assert {
+    condition     = length(aws_secretsmanager_secret.presentation_builder) == 0
+    error_message = "An environment that has not opted in must create no Presentation Builder secret."
+  }
+
+  assert {
+    condition     = length(aws_cloudfront_distribution.presentation_builder_frontend) == 0
+    error_message = "An environment that has not opted in must create no Presentation Builder distribution."
+  }
+
+  assert {
+    condition     = length(aws_iam_role.presentation_builder_application) == 0
+    error_message = "An environment that has not opted in must create no Presentation Builder workload role."
+  }
+
+  assert {
+    condition     = length(aws_iam_role.presentation_builder_github_ci) == 0
+    error_message = "An environment that has not opted in must create no Presentation Builder CI role."
+  }
+}
+
+run "presentation_builder_dev" {
+  command = plan
+
+  variables {
+    environment                = "dev"
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = false
+
+    enable_presentation_builder = true
+    presentation_builder_github_oidc_subjects = [
+      "repo:AiDigital-com@184130113/AIAE-presentation-builder@1349389858:environment:dev",
+    ]
+    presentation_builder_database_publicly_accessible = true
+    presentation_builder_database_public_access_cidrs = ["203.0.113.10/32"]
+  }
+
+  assert {
+    condition     = aws_ecr_repository.presentation_builder[0].image_tag_mutability == "IMMUTABLE"
+    error_message = "Release tags must be immutable, so a rebuilt commit can never replace a deployed artifact."
+  }
+
+  assert {
+    condition     = aws_secretsmanager_secret.presentation_builder[0].name == "AIAE-DEV/aiae-presentation-builder"
+    error_message = "DEV must use the AIAE-DEV secret name."
+  }
+
+  # Unlike Pacing, the application Pod and the Liquibase Job share ONE identity
+  # here, and deliberately: both must read the RDS-managed master secret. The
+  # application reads it through the AWS Advanced JDBC Wrapper at connection
+  # time, the Job through the Secrets Store CSI mount. Splitting them would
+  # leave the application unable to open a connection at all.
+  assert {
+    condition     = length(local.presentation_builder_service_account_subjects) == 2
+    error_message = "Both the API service account and the Liquibase Job service account must be able to assume the workload role."
+  }
+
+  # The public subnet group only exists while public access is on; without it
+  # publicly_accessible=true would produce an instance nothing can reach.
+  assert {
+    condition     = length(aws_db_subnet_group.presentation_builder_postgres_public) == 1
+    error_message = "A publicly accessible database needs the public subnet group."
+  }
+
+  assert {
+    condition     = aws_db_instance.presentation_builder_postgres[0].backup_retention_period == 0
+    error_message = "DEV keeps no backups."
+  }
+
+  # DEV serves on the generated CloudFront domain, so no alias is attached and
+  # no certificate is requested. Attaching one would require external DNS work
+  # that DEV deliberately does not do.
+  assert {
+    condition     = length(aws_cloudfront_distribution.presentation_builder_frontend[0].aliases) == 0
+    error_message = "DEV must serve on the generated CloudFront domain with no attached alias."
+  }
+
+  assert {
+    condition     = length(aws_acm_certificate.presentation_builder_frontend) == 0
+    error_message = "DEV must request no ACM certificate."
+  }
+}
+
+# The ALB does not exist until Argo CD has created the Ingress, so the first
+# apply necessarily runs with an empty API origin. This asserts that the empty
+# value produces a distribution that still serves the SPA rather than failing,
+# which is what makes the documented two-apply sequence safe.
+run "presentation_builder_first_apply_has_no_api_behaviours" {
+  command = plan
+
+  variables {
+    environment                = "dev"
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = false
+
+    enable_presentation_builder = true
+    presentation_builder_github_oidc_subjects = [
+      "repo:AiDigital-com@184130113/AIAE-presentation-builder@1349389858:environment:dev",
+    ]
+    presentation_builder_frontend_api_origin_domain_name = ""
+  }
+
+  assert {
+    condition     = length(aws_cloudfront_distribution.presentation_builder_frontend[0].ordered_cache_behavior) == 0
+    error_message = "With no API origin there must be no /api/* or /actuator/* behaviour pointing at a nonexistent ALB."
+  }
+
+  assert {
+    condition     = length(aws_cloudfront_distribution.presentation_builder_frontend[0].origin) == 1
+    error_message = "With no API origin the distribution must carry the S3 origin alone."
+  }
+}
+
+run "presentation_builder_second_apply_attaches_api_behaviours" {
+  command = plan
+
+  variables {
+    environment                = "dev"
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = false
+
+    enable_presentation_builder = true
+    presentation_builder_github_oidc_subjects = [
+      "repo:AiDigital-com@184130113/AIAE-presentation-builder@1349389858:environment:dev",
+    ]
+    presentation_builder_frontend_api_origin_domain_name = "k8s-aiaedev-example-0000000000-0000000000.us-east-1.elb.amazonaws.com"
+  }
+
+  # /api/* and /actuator/*: the SPA calls the API on its own origin, and the
+  # ALB health path must be reachable through the same hostname.
+  assert {
+    condition = toset([
+      for b in aws_cloudfront_distribution.presentation_builder_frontend[0].ordered_cache_behavior :
+      b.path_pattern
+    ]) == toset(["/api/*", "/actuator/*"])
+    error_message = "Both /api/* and /actuator/* must be forwarded to the ALB once its address is known."
+  }
+
+  # Asserted through the behaviours rather than through .origin: origin is a
+  # set whose elements are not fully known at plan time, so its length cannot
+  # be evaluated until apply. Every behaviour naming backend-alb proves the
+  # second origin exists, because CloudFront rejects a behaviour whose
+  # target_origin_id matches no origin.
+  assert {
+    condition = alltrue([
+      for b in aws_cloudfront_distribution.presentation_builder_frontend[0].ordered_cache_behavior :
+      b.target_origin_id == "backend-alb"
+    ])
+    error_message = "API traffic must target the ALB origin, not the S3 bucket."
+  }
+}
+
+run "presentation_builder_prod_rejects_public_database" {
+  command = plan
+
+  variables {
+    environment                = "prod"
+    aws_account_id             = "125093118532"
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = true
+
+    enable_presentation_builder = true
+    presentation_builder_github_oidc_subjects = [
+      "repo:AiDigital-com@184130113/AIAE-presentation-builder@1349389858:environment:prod",
+    ]
+    presentation_builder_database_publicly_accessible = true
+    presentation_builder_database_public_access_cidrs = ["203.0.113.10/32"]
+  }
+
+  expect_failures = [
+    aws_db_instance.presentation_builder_postgres,
+  ]
+}
+
+run "presentation_builder_rejects_world_open_database" {
+  command = plan
+
+  variables {
+    environment                = "dev"
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = false
+
+    enable_presentation_builder = true
+    presentation_builder_github_oidc_subjects = [
+      "repo:AiDigital-com@184130113/AIAE-presentation-builder@1349389858:environment:dev",
+    ]
+    presentation_builder_database_publicly_accessible = true
+    presentation_builder_database_public_access_cidrs = ["0.0.0.0/0"]
+  }
+
+  expect_failures = [
+    aws_db_instance.presentation_builder_postgres,
+  ]
+}
+
+run "presentation_builder_rejects_empty_oidc_subjects" {
+  command = plan
+
+  variables {
+    environment                = "dev"
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = false
+
+    enable_presentation_builder               = true
+    presentation_builder_github_oidc_subjects = []
+  }
+
+  expect_failures = [
+    aws_iam_role.presentation_builder_github_ci,
+  ]
+}
+
+# The workload role must stay limited to the two secrets it genuinely needs.
+# This application calls no AWS API at runtime: its artifacts go to Google
+# Slides and Sheets, not to S3. An added statement here should have to justify
+# itself by failing this test first.
+run "presentation_builder_workload_role_grants_only_its_two_secrets" {
+  command = plan
+
+  variables {
+    environment                = "dev"
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = false
+
+    enable_presentation_builder = true
+    presentation_builder_github_oidc_subjects = [
+      "repo:AiDigital-com@184130113/AIAE-presentation-builder@1349389858:environment:dev",
+    ]
+  }
+
+  assert {
+    condition     = length(data.aws_iam_policy_document.presentation_builder_application[0].statement) == 2
+    error_message = "The workload role must grant exactly the application secret and the RDS-managed secret."
+  }
+
+  assert {
+    condition = length([
+      for s in data.aws_iam_policy_document.presentation_builder_application[0].statement :
+      s if s.sid == "ReadDatabaseCredentialsSecret"
+    ]) == 1
+    error_message = "The workload role must read the RDS-managed secret: the JDBC wrapper and the Liquibase Job both depend on it."
+  }
+}
