@@ -185,4 +185,4 @@ presentation_builder_database_public_access_cidrs = ["188.255.211.8/32"]
 # Empty on the first apply: the ALB does not exist until Argo CD has created
 # the Ingress. Set it to the Ingress address and re-apply to attach the /api/*
 # and /actuator/* CloudFront behaviours.
-presentation_builder_frontend_api_origin_domain_name = ""
+presentation_builder_frontend_api_origin_domain_name = "k8s-aiaedev-aiaepres-2a1bfe56f3-765380046.us-east-1.elb.amazonaws.com"
