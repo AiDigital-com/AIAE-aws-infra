@@ -34,7 +34,21 @@ variable "presentation_builder_database_engine_version" {
 
 variable "presentation_builder_database_instance_class" {
   type        = string
-  description = "Instance class for the Presentation Builder database."
+  description = <<-EOT
+    Instance class for the Presentation Builder database.
+
+    The default matches the rest of the DEV fleet, but an instance class can
+    only be created in the Availability Zones AWS currently offers it in, and
+    this VPC has subnets in us-east-1a and us-east-1b alone. db.t4g.small
+    stopped being offered there between September and October 2026, so
+    env/dev.tfvars overrides this with db.t3.small and records the evidence.
+    Confirm availability before changing it:
+
+      aws rds describe-orderable-db-instance-options --engine postgres \
+        --db-instance-class <class> \
+        --query 'OrderableDBInstanceOptions[].AvailabilityZones[].Name' \
+        --output text | tr '\t' '\n' | sort -u
+  EOT
   default     = "db.t4g.small"
 }
 

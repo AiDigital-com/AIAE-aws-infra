@@ -129,7 +129,42 @@ presentation_builder_github_oidc_subjects = [
   "repo:AiDigital-com@184130113/AIAE-presentation-builder@1349389858:environment:dev",
 ]
 
-presentation_builder_database_instance_class    = "db.t4g.small"
+# db.t3.small, NOT the db.t4g.small the other three DEV databases run.
+#
+# READ THIS BEFORE "FIXING" IT BACK. On 2026-10-07 AWS would not create a
+# db.t4g.small here at all:
+#
+#   InvalidVPCNetworkStateFault: You can't create a db.t4g.small database
+#   instance because no subnets exist in Availability Zones with sufficient
+#   capacity ... choose from these Availability Zones: us-east-1f
+#
+# RDS places an instance in one of the Availability Zones its DB subnet group
+# covers. Both subnet groups here cover us-east-1a and us-east-1b only, because
+# that is where this VPC has subnets. AWS offers db.t4g.small for PostgreSQL in
+# us-east-1f alone — checked across nine minor versions from 16.4 to 17.6. The
+# two sets do not intersect, so there is nowhere to place the instance.
+#
+# The other three databases are db.t4g.small because they were created on
+# 2026-08-27, 2026-08-28 and 2026-09-18, while us-east-1a still offered it.
+# Their configuration is not different from this one; only the date is.
+#
+# db.t3.small is the same size (2 vCPU, 2 GiB) and the same burstable family,
+# on Intel rather than Graviton, and AWS offers it in us-east-1a and
+# us-east-1b. It costs $0.036/hour against $0.032, so about $3 a month more.
+# The architecture is invisible to the application: RDS is managed and the
+# backend reaches it over JDBC.
+#
+# To go back to db.t4g.small, first confirm AWS offers it in one of this VPC's
+# Availability Zones:
+#
+#   aws rds describe-orderable-db-instance-options --engine postgres \
+#     --db-instance-class db.t4g.small \
+#     --query 'OrderableDBInstanceOptions[].AvailabilityZones[].Name' \
+#     --output text | tr '\t' '\n' | sort -u
+#
+# If us-east-1a or us-east-1b appears, changing this value is a reboot, not a
+# replacement. If only us-east-1f appears, the apply will fail exactly as above.
+presentation_builder_database_instance_class    = "db.t3.small"
 presentation_builder_database_allocated_storage = 20
 presentation_builder_database_multi_az          = false
 

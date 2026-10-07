@@ -799,6 +799,17 @@ Review the plan before apply. Repeat with the PROD backend configuration and `en
 
 Why: Terraform must create AWS resources and IAM permissions before a workflow or pod tries to use them.
 
+If the application needs a database, check that the instance class you copied from an existing application can still be created, before you plan:
+
+```bash
+aws rds describe-orderable-db-instance-options --engine postgres \
+  --db-instance-class db.t4g.small \
+  --query 'OrderableDBInstanceOptions[].AvailabilityZones[].Name' \
+  --output text | tr '\t' '\n' | sort -u
+```
+
+This VPC has subnets in `us-east-1a` and `us-east-1b` only, and RDS places an instance in one of the Availability Zones its DB subnet group covers. If the command lists neither of those, that class cannot be created here no matter what the other applications run, and `terraform plan` will not warn you — the failure appears during apply. The Presentation Builder hit exactly this in October 2026 and runs `db.t3.small` for that reason; `env/dev.tfvars` records the evidence. Pick a class the command lists, or treat adding a subnet in another Availability Zone as separate shared-VPC work.
+
 ### Step 4: add the Helm chart
 
 In `AIAE-helm/main`, add a chart directory such as:
@@ -1151,6 +1162,39 @@ Check CloudFront ordered behavior for `/api/*`, ALB origin name, DNS, certificat
 
 - DEV RDS is currently public and permits `0.0.0.0/0`. Check endpoint, port, credentials, and local network firewall.
 - PROD RDS is private by design. Connect through an approved tunnel or run administrative SQL from inside the VPC. Do not expose PROD publicly.
+
+### Creating an RDS instance fails with InvalidVPCNetworkStateFault
+
+```
+InvalidVPCNetworkStateFault: You can't create a db.t4g.small database instance
+because no subnets exist in Availability Zones with sufficient capacity ...
+choose from these Availability Zones: us-east-1f
+```
+
+This is not a subnet misconfiguration and adding storage or changing `gp2` to `gp3` does not help. RDS places an instance in one of the Availability Zones its DB subnet group covers. This VPC has subnets in `us-east-1a` and `us-east-1b` only, and AWS was no longer offering that instance class in either.
+
+Check where the class is actually offered:
+
+```bash
+aws rds describe-orderable-db-instance-options --engine postgres \
+  --db-instance-class db.t4g.small \
+  --query 'OrderableDBInstanceOptions[].AvailabilityZones[].Name' \
+  --output text | tr '\t' '\n' | sort -u
+```
+
+Then find a class that is offered in this VPC's Availability Zones:
+
+```bash
+aws rds describe-orderable-db-instance-options --engine postgres \
+  --engine-version 16.15 \
+  --query "OrderableDBInstanceOptions[?StorageType=='gp3'].{c:DBInstanceClass,az:AvailabilityZones[].Name}" \
+  --output json \
+| jq -r '.[] | select((.az|index("us-east-1a")) and (.az|index("us-east-1b"))) | .c' | sort -u
+```
+
+An existing application running that class proves nothing: it proves the class was offered on the day it was created. The three DEV databases created in August and September 2026 are `db.t4g.small`; the Presentation Builder, created in October, could not be and runs `db.t3.small`.
+
+Changing the class on an existing instance is a reboot, not a replacement, so moving back later is cheap. Adding a subnet in another Availability Zone also solves it, but that edits the shared VPC every application uses and belongs in its own reviewed change.
 
 ### Grafana login or assignment fails
 
