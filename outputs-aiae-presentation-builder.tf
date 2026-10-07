@@ -81,11 +81,19 @@ output "presentation_builder_required_secret_keys" {
     RDS-managed secret, which AWS owns and rotates, and are read from there at
     connection time.
 
-    CLERK_SECRET_KEY is required and not optional: ClerkOAuthTokenService is
-    conditional on it and is what exchanges the signed-in user's Clerk session
-    for the Google OAuth token that Slides and Sheets calls are made with.
-    GOOGLE_SERVICE_ACCOUNT_JSON is a multiline JSON document stored as a single
-    string value.
+    GOOGLE_SERVICE_ACCOUNT_JSON is the one that cannot be left out. It is a
+    multiline JSON document stored as a single string value, and
+    GoogleCredentialsFactory is conditional on it; every Real* Slides and
+    Sheets provider is in turn @ConditionalOnBean of that factory, so a blank
+    value silently leaves the application on stub providers that generate
+    nothing.
+
+    CLERK_SECRET_KEY is degrading rather than fatal. ClerkOAuthTokenService is
+    conditional on it and supplies the signed-in user's Google OAuth token, but
+    its five consumers all guard with `clerk == null ? null : ...`. Without it
+    the application still starts and still generates decks — using the service
+    account alone, so decks are not created in the caller's own Drive and
+    source spreadsheets cannot be read with the caller's Google account.
   EOT
   value = [
     "POSTGRES_HOST",
