@@ -148,7 +148,7 @@ onboarding_frontend_api_origin_domain_name = "k8s-aiaeprod-aiaeonbo-99333fe377-1
 # --- Pacing (application-scoped) --------------------------------------------
 # Not yet released to production. Everything below is the inert value; flipping
 # enable_paicing is a separate, reviewed decision with its own plan.
-enable_paicing = false
+enable_paicing = true
 
 paicing_github_oidc_subjects = [
   "repo:AiDigital-com@184130113/AIAE-paicing@1354553508:environment:prod",
@@ -163,4 +163,4 @@ paicing_database_publicly_accessible = false
 paicing_database_public_access_cidrs = []
 
 # Enabled together with enable_paicing when Pacing is released to production.
-enable_ebs_storage_class = false
+enable_ebs_storage_class = true
