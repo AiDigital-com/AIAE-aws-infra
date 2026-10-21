@@ -30,7 +30,16 @@ output "paicing_secret_name" {
     value reaches the Pod through the Secrets Store CSI driver.
 
     Keys a human must populate (Terraform never writes values):
-      DATABASE_URL                  postgres://pacing_app:<password>@<host>:5432/pacing?sslmode=require
+      DATABASE_URL                  postgres://pacing_app:<password>@<host>:5432/pacing?sslmode=no-verify
+                                    no-verify, NOT require: node-postgres resolves
+                                    `require` to verify-full and then rejects the
+                                    RDS certificate chain with "self-signed
+                                    certificate in certificate chain". The pod
+                                    still starts, because /healthz deliberately
+                                    does not touch the database, so the symptom is
+                                    a healthy pod that cannot read a single row.
+                                    Cost PROD a wrong DSN on 2026-10-21, where
+                                    this line said `require`.
                                     The APPLICATION's own role, not the master.
                                     You choose this password; AWS never rotates
                                     it. The migration Job reads the role name and
