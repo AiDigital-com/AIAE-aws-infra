@@ -132,6 +132,38 @@ run "base_dev" {
     )
     error_message = "The production-only observability stack must remain disabled in DEV."
   }
+
+  assert {
+    condition     = length(helm_release.metrics_server) == 0
+    error_message = "metrics-server must stay off unless an environment enables it."
+  }
+}
+
+run "metrics_server_dev" {
+  command = plan
+
+  variables {
+    environment                  = "dev"
+    enable_metrics_server        = true
+    enable_argocd                = false
+    enable_gitops_bootstrap      = false
+    enable_external_dns          = false
+    enable_public_certificate    = false
+    enable_frontend              = false
+    enable_deletion_protection   = false
+    database_publicly_accessible = true
+    database_public_access_cidrs = ["203.0.113.10/32"]
+  }
+
+  assert {
+    condition = (
+      length(helm_release.metrics_server) == 1 &&
+      helm_release.metrics_server[0].namespace == "kube-system" &&
+      helm_release.metrics_server[0].chart == "metrics-server" &&
+      helm_release.metrics_server[0].version == "3.14.0"
+    )
+    error_message = "metrics-server must be installed in kube-system from a pinned chart version."
+  }
 }
 
 run "prod_application_logging" {

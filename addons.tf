@@ -62,6 +62,25 @@ resource "helm_release" "external_dns" {
   ]
 }
 
+# Serves the resource metrics API (metrics.k8s.io) that HorizontalPodAutoscalers read CPU from.
+# EKS Auto Mode does not ship it. Without it every HPA reports ScalingActive=False
+# (FailedGetResourceMetric), never scales, and Argo CD 3.5+ marks its Application Degraded.
+resource "helm_release" "metrics_server" {
+  count = var.enable_metrics_server ? 1 : 0
+
+  name       = "metrics-server"
+  namespace  = "kube-system"
+  repository = "https://kubernetes-sigs.github.io/metrics-server/"
+  chart      = "metrics-server"
+  version    = "3.14.0"
+
+  atomic  = true
+  timeout = 600
+  wait    = true
+
+  depends_on = [module.eks]
+}
+
 resource "helm_release" "aws_for_fluent_bit" {
   count = var.enable_application_logging ? 1 : 0
 

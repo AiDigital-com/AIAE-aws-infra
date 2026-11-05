@@ -304,6 +304,12 @@ variable "enable_external_dns" {
   default     = false
 }
 
+variable "enable_metrics_server" {
+  type        = bool
+  description = "Install metrics-server so HorizontalPodAutoscalers can read pod CPU (metrics.k8s.io)."
+  default     = false
+}
+
 variable "route53_zone_name" {
   type        = string
   description = "Public Route53 hosted zone name, for example aidigital.tech. Empty disables Route53-managed resources."

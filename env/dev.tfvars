@@ -30,6 +30,7 @@ argocd_rbac_role_mappings = {
 }
 
 enable_secrets_store_csi = true
+enable_metrics_server    = true
 
 # DNS is managed in GoDaddy. Keep disabled until manual ACM validation or
 # Route53 subdomain delegation is represented in Terraform.
