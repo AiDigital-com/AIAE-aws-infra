@@ -59,6 +59,7 @@ argocd_rbac_role_mappings = {
 }
 
 enable_secrets_store_csi = true
+enable_metrics_server    = true
 
 # DNS is managed in GoDaddy. Request the CloudFront certificate now, attach
 # the hostname only after the manual validation CNAME is active.
