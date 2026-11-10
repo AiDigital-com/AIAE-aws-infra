@@ -19,6 +19,7 @@ grafana_rbac_role_mappings = {
     user_ids = [
       "e4d8b4d8-2011-7065-8ede-acee6afd190d", #gleb.mozhaiskii@aidigital.com
       "9468a498-c0f1-70c2-0935-4e1bd435e417", # azat.nabiev@aidigital.com
+      "9468e458-1051-70ed-5215-e41926537ae8" # artem.dippel@aidigital.com
     ]
   }
   platform_viewers = {
