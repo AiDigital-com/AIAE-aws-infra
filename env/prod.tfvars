@@ -86,6 +86,10 @@ database_publicly_accessible = false
 database_public_access_cidrs = []
 enable_deletion_protection   = true
 
+# Human access to the private databases: SSM port-forwarding through a jump
+# instance, gated by the IAM policies in database-access.tf.
+enable_database_access = true
+
 # --- AIAE Onboarding Platform (application-scoped) --------------------------
 enable_onboarding_platform = true
 

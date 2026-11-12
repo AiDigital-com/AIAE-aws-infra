@@ -126,3 +126,27 @@ output "grafana_workspace_url" {
   description = "Amazon Managed Grafana workspace URL."
   value       = try("https://${aws_grafana_workspace.production[0].endpoint}", null)
 }
+
+output "database_access_instance_id" {
+  description = "SSM jump instance used as the target of `aws ssm start-session` port-forwarding to the PostgreSQL instances."
+  value       = try(aws_instance.database_access[0].id, null)
+}
+
+output "database_access_policy_names" {
+  description = "Customer-managed IAM policies to reference from Identity Center permission sets."
+  value = var.enable_database_access ? {
+    admin    = aws_iam_policy.database_admin_access[0].name
+    readonly = aws_iam_policy.database_readonly_access[0].name
+  } : null
+}
+
+output "database_access_targets" {
+  description = "Per database: RDS address, master secret ARN (admins) and read-only secret name."
+  value = {
+    for key, db in local.database_access_targets : key => {
+      address           = db.address
+      master_secret_arn = db.master_secret_arn
+      readonly_secret   = aws_secretsmanager_secret.database_readonly[key].name
+    }
+  }
+}
