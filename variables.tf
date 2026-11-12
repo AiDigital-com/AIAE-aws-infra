@@ -419,3 +419,15 @@ variable "enable_deletion_protection" {
   description = "Enable deletion protection for persistent resources."
   default     = true
 }
+
+variable "enable_database_access" {
+  type        = bool
+  description = "Create the SSM jump instance, read-only credential secrets and IAM policies for human PostgreSQL access. See database-access.tf."
+  default     = false
+}
+
+variable "database_access_instance_type" {
+  type        = string
+  description = "Instance type of the SSM jump instance. It only relays TCP, so the smallest Graviton size is enough."
+  default     = "t4g.nano"
+}

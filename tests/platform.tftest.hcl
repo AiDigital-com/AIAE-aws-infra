@@ -1152,3 +1152,63 @@ run "presentation_builder_workload_role_grants_only_its_two_secrets" {
     error_message = "The workload role must read the RDS-managed secret: the JDBC wrapper and the Liquibase Job both depend on it."
   }
 }
+
+run "database_access_disabled_by_default" {
+  command = plan
+
+  variables {
+    environment             = "dev"
+    enable_frontend         = false
+    enable_argocd           = false
+    enable_gitops_bootstrap = false
+  }
+
+  assert {
+    condition     = length(aws_instance.database_access) == 0 && length(aws_secretsmanager_secret.database_readonly) == 0
+    error_message = "Database access resources must not be created unless enable_database_access=true."
+  }
+}
+
+run "database_access_prod" {
+  command = plan
+
+  variables {
+    environment                = "prod"
+    aws_account_id             = "125093118532"
+    enable_frontend            = false
+    enable_argocd              = false
+    enable_gitops_bootstrap    = false
+    enable_deletion_protection = true
+    enable_database_access     = true
+
+    enable_paicing = true
+    paicing_github_oidc_subjects = [
+      "repo:AiDigital-com/AIAE-paicing:environment:prod",
+    ]
+  }
+
+  assert {
+    condition     = !aws_instance.database_access[0].associate_public_ip_address && aws_instance.database_access[0].metadata_options[0].http_tokens == "required"
+    error_message = "The jump instance must be private and require IMDSv2."
+  }
+
+  assert {
+    condition     = length(aws_security_group.database_access[0].ingress) == 0
+    error_message = "The jump instance must accept no inbound traffic; Session Manager needs none."
+  }
+
+  assert {
+    condition     = toset(keys(aws_secretsmanager_secret.database_readonly)) == toset(["operational-hub", "paicing"])
+    error_message = "A read-only secret must exist for exactly the enabled databases."
+  }
+
+  assert {
+    condition     = aws_secretsmanager_secret.database_readonly["paicing"].name == "AIAE-PRD/aiae-paicing/db-readonly"
+    error_message = "Read-only secrets must live under the application's PROD secret prefix."
+  }
+
+  assert {
+    condition     = aws_iam_policy.database_admin_access[0].name == "aiae-operational-hub-prod-database-admin-access" && aws_iam_policy.database_readonly_access[0].name == "aiae-operational-hub-prod-database-readonly-access"
+    error_message = "Policy names are referenced by Identity Center permission sets and must stay stable."
+  }
+}
