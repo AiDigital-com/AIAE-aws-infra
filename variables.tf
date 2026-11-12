@@ -402,6 +402,17 @@ variable "database_public_access_cidrs" {
   }
 }
 
+variable "database_subnets_internet_gateway_route" {
+  type        = bool
+  description = <<-EOT
+    Give the database subnets their own route table with an internet-gateway
+    default route. Lets database_publicly_accessible take effect in place,
+    without moving the instance to the public subnet group (which causes an
+    outage). Instances that are not publicly accessible are unaffected.
+  EOT
+  default     = false
+}
+
 variable "domain_name" {
   type        = string
   description = "Public application domain for prod. Dev should use a separate host."

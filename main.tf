@@ -229,6 +229,14 @@ module "vpc" {
   single_nat_gateway     = var.environment != "prod"
   one_nat_gateway_per_az = var.environment == "prod"
 
+  # Off by default: database subnets share the private route tables (NAT).
+  # When on, they get their own route table whose default route is the
+  # internet gateway, so an instance in them can be made publicly accessible
+  # in place (no subnet-group move, no downtime). Instances without
+  # publicly_accessible have no public IP and stay unreachable from outside.
+  create_database_subnet_route_table     = var.database_subnets_internet_gateway_route
+  create_database_internet_gateway_route = var.database_subnets_internet_gateway_route
+
   enable_dns_hostnames = true
   enable_dns_support   = true
 
@@ -303,8 +311,15 @@ resource "aws_db_subnet_group" "postgres" {
   subnet_ids = module.vpc.database_subnets
 }
 
+locals {
+  # Public access normally means moving the instance to the public subnets.
+  # With database_subnets_internet_gateway_route the database subnets are
+  # internet-routable themselves, so the instance stays where it is.
+  postgres_uses_public_subnet_group = var.database_publicly_accessible && !var.database_subnets_internet_gateway_route
+}
+
 resource "aws_db_subnet_group" "postgres_public" {
-  count = var.database_publicly_accessible ? 1 : 0
+  count = local.postgres_uses_public_subnet_group ? 1 : 0
 
   name       = "${local.name}-postgres-public"
   subnet_ids = module.vpc.public_subnets
@@ -326,7 +341,7 @@ resource "aws_db_instance" "postgres" {
 
   manage_master_user_password = true
 
-  db_subnet_group_name = var.database_publicly_accessible ? (
+  db_subnet_group_name = local.postgres_uses_public_subnet_group ? (
     aws_db_subnet_group.postgres_public[0].name
   ) : aws_db_subnet_group.postgres.name
   vpc_security_group_ids = [aws_security_group.rds.id]
