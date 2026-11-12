@@ -1212,3 +1212,29 @@ run "database_access_prod" {
     error_message = "Policy names are referenced by Identity Center permission sets and must stay stable."
   }
 }
+
+run "prod_public_primary_via_database_subnet_route" {
+  command = plan
+
+  variables {
+    environment                             = "prod"
+    aws_account_id                          = "125093118532"
+    enable_frontend                         = false
+    enable_argocd                           = false
+    enable_gitops_bootstrap                 = false
+    enable_deletion_protection              = true
+    database_subnets_internet_gateway_route = true
+    database_publicly_accessible            = true
+    database_public_access_cidrs            = ["203.0.113.10/32"]
+  }
+
+  assert {
+    condition     = aws_db_instance.postgres.publicly_accessible && aws_db_instance.postgres.db_subnet_group_name == "aiae-operational-hub-prod-postgres"
+    error_message = "With the database-subnet IGW route, the primary must become public in place, without moving subnet group."
+  }
+
+  assert {
+    condition     = length(aws_db_subnet_group.postgres_public) == 0
+    error_message = "No public subnet group is needed when the database subnets are internet-routable."
+  }
+}

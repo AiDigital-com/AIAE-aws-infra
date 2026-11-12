@@ -19,7 +19,7 @@ grafana_rbac_role_mappings = {
     user_ids = [
       "e4d8b4d8-2011-7065-8ede-acee6afd190d", #gleb.mozhaiskii@aidigital.com
       "9468a498-c0f1-70c2-0935-4e1bd435e417", # azat.nabiev@aidigital.com
-      "9468e458-1051-70ed-5215-e41926537ae8" # artem.dippel@aidigital.com
+      "9468e458-1051-70ed-5215-e41926537ae8"  # artem.dippel@aidigital.com
     ]
   }
   platform_viewers = {
@@ -79,12 +79,21 @@ public_subnet_cidrs   = ["10.50.0.0/24", "10.50.1.0/24"]
 private_subnet_cidrs  = ["10.50.10.0/24", "10.50.11.0/24"]
 database_subnet_cidrs = ["10.50.20.0/24", "10.50.21.0/24"]
 
-database_instance_class      = "db.t4g.medium"
-database_allocated_storage   = 100
-database_multi_az            = true
-database_publicly_accessible = false
-database_public_access_cidrs = []
-enable_deletion_protection   = true
+database_instance_class    = "db.t4g.medium"
+database_allocated_storage = 100
+database_multi_az          = true
+enable_deletion_protection = true
+
+# Operational Hub PROD is reachable from the internet ONLY from the CIDRs
+# below (security group), with TLS enforced (rds.force_ssl). External readers
+# use the `readonly` login, never the master user. The instance stays in the
+# database subnets: those get an internet-gateway route instead of moving it,
+# so this needs no downtime. Onboarding and Pacing stay private (no public IP).
+database_subnets_internet_gateway_route = true
+database_publicly_accessible            = true
+database_public_access_cidrs = [
+  "35.208.250.111/32", # external read-only service in Google Cloud (daily read)
+]
 
 # Human access to the private databases: SSM port-forwarding through a jump
 # instance, gated by the IAM policies in database-access.tf.
